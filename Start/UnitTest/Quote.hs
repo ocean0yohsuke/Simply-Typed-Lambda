@@ -15,10 +15,11 @@ unittest "quasiquote" [
     ]
 
 -- quine
-q :: _ 
+x = "x"
 q = \x. `(,x {,x})
 -- godel
-g :: _
+isunprovable = "isunprovable"
+valueof = "valueof"
 g = \x -> `(isunprovable (valueof (,x {,x})))
 
 unittest "quine & godel" [

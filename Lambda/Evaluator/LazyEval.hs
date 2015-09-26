@@ -166,7 +166,7 @@ lazyEval (APP t arg msp) = localMSPBy msp $ do
       LAM (pm, _) body msp  -> localMSPBy msp $ do
         arg <- delay arg
         body >- (betaReducePM (pm, arg) >=> weekforce >=> lazyEval)  
-      _                     -> restore t >>= \e -> throwEvalError $ strMsg $ "lazyEval: APP: invalid operator detected: " ++ show e
+      _                     -> restore t >>= \e -> throwEvalError $ strMsg $ "lazyEval: APP: invalid operator detected: "++ show e
 lazyEval (SYN s msp) = localMSPBy msp $ case s of 
     IF cond t1 t2 -> do
         bool <- actual cond

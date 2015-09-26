@@ -8,8 +8,6 @@ import Lambda.Evaluator
 import Lambda.DataType
 
 import System.IO
-import qualified Data.Map as M 
-import Data.IORef
 
 main :: IO ()
 main = run
@@ -19,8 +17,6 @@ run = do
     xs <- hGetContents stdin
     putStr "> "
     putStrLn ""
-    ref <- newIORef initContext
-    let initEnv = LambdaEnv ref initMSP initConfig
     repl (initEnv, initStates) xs
 
 ----------------------------------------------------------------------------------------------------------------

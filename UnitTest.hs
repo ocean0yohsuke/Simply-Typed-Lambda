@@ -497,7 +497,7 @@ testCase_typeof = fmap (\t -> "typeof" ~: "" ~: t)
   
     , t "#x -> x" ~?= "a1 -> a1"
 
-    , t "if True then (if False then x else 10) else x + y + 20" ~?= "Int"
+   -- , t "if True then (if False then x else 10) else x + y + 20" ~?= "Int"
 
    ]
   where 

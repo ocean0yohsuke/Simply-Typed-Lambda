@@ -19,7 +19,6 @@ import Lambda.DataType
 
 import qualified Data.Map as M
 import Data.Traversable as Trav
-import Data.IORef
 
 -- for debug
 import Debug.Trace 

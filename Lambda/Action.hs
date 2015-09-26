@@ -14,7 +14,6 @@ import qualified Lambda.DataType.Error.Eval as EE
 
 import Data.List (lookup, elemIndex)
 import qualified Data.Map as M
-import Data.IORef
 import System.IO 
 
 -- for debug

@@ -66,14 +66,6 @@ substTyUnifyforType unify (VAR name) = case lookup name unify of
     Just ty -> ty
 substTyUnifyforType unify ty         = pdfmap (substTyUnifyforType unify) ty
     
-{-
-localTyUnifyforContext :: TyUnify -> Lambda a -> Lambda a
-localTyUnifyforContext unify lam = do
-    ctx <- askContext
-    let newctx = ctx <$| (\(name, ty) -> (name, substTyUnifyforType unify ty))
-    localTyContextBy newctx lam
--}
-
 pushTyUnify :: (Name, Type) -> TyUnify -> TyUnify
 pushTyUnify p@(name,ty) unify = 
     let unify' = unify <$| (\(name, ty) -> (name, substTyUnifyforType [p] ty))

@@ -15,18 +15,18 @@ import Lambda.Evaluator.IO
 import Debug.Trace 
 
 initDef :: Def
-initDef = microContext 
-        ++ preludeContext 
-        ++ metaContext
-        ++ debugContext 
-        ++ ioContext
+initDef = microDef 
+        ++ preludeDef 
+        ++ metaDef
+        ++ debugDef 
+        ++ ioDef
 
 ----------------------------------------------------------------------
--- Context
+-- Def
 ----------------------------------------------------------------------
 
-microContext :: Def
-microContext = [
+microDef :: Def
+microDef = [
     -- primitive
       ("iszero", (INT :-> BOOL,  AFUNC "iszero" evalIsZero))
     , ("pred",   (INT :-> INT,   AFUNC "pred" evalPred))
@@ -41,8 +41,8 @@ microContext = [
     , ("null", (CONS (VAR "a") :-> BOOL,                       AFUNC "null" evalNull))
     ]
 
-preludeContext :: Def
-preludeContext = [
+preludeDef :: Def
+preludeDef = [
     -- arithmetic
       ("+",   (INT :-> INT :-> INT,  AFUNC "(+)" evalPlus))
     , ("-",   (INT :-> INT :-> INT,  AFUNC "(-)" evalMinus))
@@ -59,8 +59,8 @@ preludeContext = [
     , ("show", (VAR "a" :-> CONS CHAR, AFUNC "show" evalShow))
     ]
 
-metaContext :: Def
-metaContext = [
+metaDef :: Def
+metaDef = [
     -- evaluator
       ("eval",         (UNIT :-> UNIT,          META "eval" evalEval))
     , ("evalN",        (INT :-> UNIT :-> UNIT,  META "evalN" evalEvalN))
@@ -77,21 +77,21 @@ metaContext = [
 
     ]
 
-debugContext :: Def
-debugContext = [
+debugDef :: Def
+debugDef = [
       ("unittest", (CONS CHAR :-> CONS (TUPLE [UNIT, UNIT]) :-> CONS CHAR,     META "unittest" evalUnitTest))
 
     -- show
     , ("showExpr",  (CONS CHAR :-> CONS CHAR,  PROC "showExpr" evalShowExpr))
     , ("showSExpr", (CONS CHAR :-> CONS CHAR,  PROC "showSExpr" evalShowSExpr))
 
-    , ("showContext", (NULL, COMND "showContext" evalShowContext))
+    , ("showDef", (NULL, COMND "showDef" evalShowDef))
     , ("showDef",     (NULL, COMND "showDef" evalShowDef))
     , ("showDef_",    (NULL, COMND "showDef_" evalShowDef_))
     ]
 
-ioContext :: Def
-ioContext = [
+ioDef :: Def
+ioDef = [
       ("import", (CONS CHAR :-> NULL,     PROC "import" evalImport))
 
     , ("print",  (VAR "a" :-> NULL,             AFUNC "print" evalPrint))

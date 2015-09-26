@@ -156,11 +156,13 @@ toTerm (E.VAR name msp) = localMSPBy msp $ do
     mv <- nameToIndex name
     case mv of
       Just index -> (*:) $ VAR index msp
-      --Nothing    -> throwCompileError $ strMsg $ "toTerm: not found: "++ show name
+      Nothing    -> throwCompileError $ strMsg $ "toTerm: not found: "++ show name
+{-
       Nothing    -> do
         insertDef name (Ty.UNIT, unit)
         mv <- nameToIndex name
         case mv of Just index -> (*:) $ VAR index msp
+-}
 toTerm (E.OPR sym msp) = toTerm $ E.VAR sym msp
 --
 toTerm (E.FIX lam msp)     = localMSPBy msp $ FIX |$> toTerm lam |* msp
@@ -171,7 +173,7 @@ toTerm (E.SEN g msp) = SEN |$> (localMSPBy msp $ case g of
     TYPESig (name, ty) -> do
         mv <- lookupDef name
         case mv of
-          Just _  -> throwTypeofError $ strMsg $ "DEF: multiple type-signature declarations: "++ name
+          Just _  -> throwCompileError $ strMsg $ "DEF: multiple type-signature declarations: "++ name
           Nothing -> do
             insertDef name (ty, unit)
             (*:) $ TYPESig (name, ty)

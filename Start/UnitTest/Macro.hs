@@ -1,4 +1,4 @@
-squareM :: _ -> _
+
 squareM = #x -> `(,x * ,x)   -- `#` indicates macro-lambda
 
 unittest "squareM" [
@@ -6,6 +6,7 @@ unittest "squareM" [
     (let a = 3 in squareM a,  9),
     ]
 
+a = "a"
 unittest "macro_expand" [
     (macro_expand {squareM 3},       (*) 3 3),
     (macro_expand {(squareM 3) + 1}, (+) ((*) 3 3) 1),  
