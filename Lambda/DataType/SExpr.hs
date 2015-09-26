@@ -130,9 +130,10 @@ instance Show SExpr where
     show (APPSeq (x:[]) _) = show x
     show (APPSeq seq _)    = "("++ (unwords $ seq <$| show) ++")" 
     show (LAM []     e _) = error "LAM: empty params"
-    show (LAM params e _) = "("++ showParams ++ show e ++")"
+    show (LAM params e _) = "(\\"++ showParams ++"."++ show e ++")"
       where
-        showParams = fold $ params <$| (\(pm, ty) -> "\\"++ show pm ++ showType ty ++ ".")                            
+        showParams = fold $ params <$| (\(pm, ty) -> show pm ++ showType ty)
+                            >- intersperse " "                    
           where
             showType ty@(_ :-> _) = "::"++ "("++ show ty ++")"
             showType Ty.UNIT      = ""

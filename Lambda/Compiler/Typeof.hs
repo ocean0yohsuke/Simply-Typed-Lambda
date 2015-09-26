@@ -1,73 +1,114 @@
-module Lambda.Compiler.Typeof (
-    applyTypeVars, 
-    localLAMPush,
-) where
+module Lambda.Compiler.Typeof where
 
 import MonadX.Applicative
 import MonadX.Monad
+import MonadX.MonadTrans
 
 import Lambda.Action
 import Lambda.Convertor
-import qualified Lambda.DataType.PatternMatch as PM
-import qualified Lambda.DataType.Type as Ty
-import Lambda.DataType
+import Lambda.Compiler.Desugar
+import Lambda.DataType.Type
+import Lambda.DataType (Lambda, Name)
+import Util.Pseudo
 
-import Data.List (lookup)
-import qualified Data.Map as M
+import Prelude hiding (concat)
+import Data.List (lookup, nub)
 import Data.Foldable
+import Data.Traversable
+
 import Debug.Trace
 
 -----------------------------------------------------------------------
--- applyTypeVars
+-- typeunify
 -----------------------------------------------------------------------
 
-applyTypeVars :: (Type, Type) -> Type -> Type
-applyTypeVars match target = 
-    let matchevars = patternMatchVars match
-    in  substitute matchevars target
+type TyUnify = [(Name, Type)]
+
+typeunify :: [(Type, Type)] -> Lambda TyUnify -- TODO: (Type, Type) -> Lambda TyUnify
+typeunify pairs = do
+    unify <- solve pairs []
+    (*:) unify
   where
-    patternMatchVars :: (Type, Type) -> [(Name,Type)]
-    patternMatchVars pair = rec pair []
+    solve :: [(Type, Type)] -> TyUnify -> Lambda TyUnify
+    solve []                acc = (*:) acc
+    solve ((ty1,ty2):pairs) acc = do
+        if ty1 == ty2 
+        then solve pairs acc
+        else case (ty1, ty2) of
+            (ty11:->ty12, ty21:->ty22) -> solve ((ty11,ty21):(ty12,ty22):pairs) acc
+            (CONS ty1, CONS ty2)       -> solve ((ty1,ty2):pairs) acc
+            (TUPLE tys1, TUPLE tys2)   -> 
+                if length tys1 /= length tys2
+                then throwTypeofError $ "unification failed0"
+                else solve ((zip tys1 tys2)++pairs) acc
+            (VAR name, _) -> 
+                if occurs name ty2 
+                then throwTypeofError $ "unification failed1"
+                else let pairs' = pairs <$| (\(l, r) -> (substTyUnifyforType [(name,ty2)] l, substTyUnifyforType [(name,ty2)] r))
+                         acc' = pushTyUnify (name,ty2) acc
+                     in  solve pairs' acc'
+            (_, VAR name) -> 
+                if occurs name ty1 
+                then throwTypeofError $ "unification failed2"
+                else let pairs' = pairs <$| (\(l, r) -> (substTyUnifyforType [(name,ty1)] l, substTyUnifyforType [(name,ty1)] r))
+                         acc' = pushTyUnify (name,ty1) acc
+                     in  solve pairs' acc'
+            _ -> throwTypeofError $ "unification failed3"
       where
-        rec :: (Type,Type) -> [(Name,Type)] -> [(Name,Type)]
-        rec (Ty.VAR name, ty)               matches = (name,ty):matches
-        rec (x :-> y, x' :-> y')            matches = (rec (x,x') <$|(++)|*> rec (y,y')) matches
-        rec (Ty.TUPLE xs, Ty.TUPLE xs')     matches = fold $ rec |$> zip xs xs' |* matches
-        rec (Ty.CONS x, Ty.CONS x')         matches = rec (x,x') matches
-        rec _                               matches = matches 
-    substitute :: [(Name,Type)] -> Type -> Type
-    substitute matches (Ty.VAR name) = 
-        case lookup name matches of
-          Nothing -> Ty.VAR name
-          Just ty -> ty
-    substitute matches (x :-> y)       = substitute matches x :-> substitute matches y
-    substitute matches (Ty.TUPLE xs)   = Ty.TUPLE $ substitute matches |$> xs
-    substitute matches (Ty.CONS x)     = Ty.CONS $ substitute matches x
-    substitute _       ty              = ty
+        occurs :: Name -> Type -> Bool
+        occurs name (VAR x)       = name == x
+        occurs name (ty1 :-> ty2) = occurs name ty1 || occurs name ty2
+        occurs _    _             = False
 
+substTyUnifyforType :: TyUnify -> Type -> Type
+substTyUnifyforType unify (VAR name) = case lookup name unify of
+    Nothing -> VAR name
+    Just ty -> ty
+substTyUnifyforType unify ty         = pdfmap (substTyUnifyforType unify) ty
+    
+{-
+localTyUnifyforContext :: TyUnify -> Lambda a -> Lambda a
+localTyUnifyforContext unify lam = do
+    ctx <- askContext
+    let newctx = ctx <$| (\(name, ty) -> (name, substTyUnifyforType unify ty))
+    localTyContextBy newctx lam
+-}
+
+pushTyUnify :: (Name, Type) -> TyUnify -> TyUnify
+pushTyUnify p@(name,ty) unify = 
+    let unify' = unify <$| (\(name, ty) -> (name, substTyUnifyforType [p] ty))
+    in  case lookup name unify of
+            Nothing -> (name,ty) : unify'
+            Just _  -> unify'
+
+composeTyUnify :: TyUnify -> TyUnify -> TyUnify
+composeTyUnify []     unify = unify
+composeTyUnify (p:ps) unify = 
+    let unify' = pushTyUnify p unify
+    in  composeTyUnify ps unify'
+ 
 -----------------------------------------------------------------------
--- localLAMPush
+-- refreshTypeVars
 -----------------------------------------------------------------------
 
-localLAMPush :: (PM, Type) -> Lambda a -> Lambda a
-localLAMPush (pm, ty) lam = do
-    newctx <- patternMatch (pm, ty)
-    let newbindnames = pdfoldMap bindname pm
-    localContextPush (M.fromList newctx) $ localBindVarsPush newbindnames lam
-
-bindname :: PM -> [Name]
-bindname (PM.VAR name _) = [name]
-bindname _               = []
-
-patternMatch :: (PM, Type) -> Lambda [(Name, Type)]
-patternMatch (pm,                     Ty.UNIT)          = (*:) $ (pdfoldMap bindname pm) <$|(,)|* Ty.UNIT
-patternMatch (PM.VAR name _,          ty)               = (*:) [(name, ty)]
-patternMatch (PM.CONS a d msp,        Ty.CONS ty)       = localMSPBy msp $ patternMatch (a, ty) <$|(++)|*> patternMatch (d, Ty.CONS ty) 
-patternMatch (PM.TUPLE pms msp,       Ty.TUPLE tys)     = localMSPBy msp $ foldlM (\acc (pm, ty) -> (acc++)|$> patternMatch (pm, ty)) [] (zip pms tys)
-patternMatch (PM.TAG tagname pms msp, Ty.DATA typename) = localMSPBy msp $ do
-    mtys <- lookupTypeDef typename tagname
-    case mtys of
-      Nothing  -> error $ "patternMatch: TAG: nothing: lookup " ++ show typename ++" "++ show tagname
-      Just tys -> foldlM (\acc (pm, ty) -> (acc++)|$> patternMatch (pm, ty)) [] (zip pms tys)
-patternMatch _ = (*:) []
+refreshTypeVars :: Type -> Lambda Type
+refreshTypeVars UNIT = do
+    newtypevar <- newTypeVar
+    (*:) newtypevar
+refreshTypeVars ty = do
+    let varnames = nub $ pdfoldMap takeTypeVar ty
+    unify1 <- seq varnames []
+    (*:) $ substTyUnifyforType unify1 ty
+  where
+    seq []         unify = (*:) unify
+    seq (var:vars) unify = do
+        newtypevar <- newTypeVar
+        unify1 <- typeunify [(var, newtypevar)]
+        seq vars $ unify `composeTyUnify` unify1
+    takeTypeVar :: Type -> [Type]
+    takeTypeVar (VAR name) = [VAR name]
+    takeTypeVar (x :-> y)  = takeTypeVar x ++ takeTypeVar y
+    takeTypeVar (CONS x)   = takeTypeVar x 
+    takeTypeVar (TUPLE xs) = concat $ takeTypeVar |$> xs
+    takeTypeVar _          = []
 

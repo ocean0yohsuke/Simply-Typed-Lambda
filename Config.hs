@@ -7,8 +7,8 @@ data Config = Config {
     deriving (Show, Eq)
 
 initConfig = Config {
-      isLazyMode = False
-    --  isLazyMode = True
+    --  isLazyMode = False
+      isLazyMode = True
     , startDir = "Start"
     }
 

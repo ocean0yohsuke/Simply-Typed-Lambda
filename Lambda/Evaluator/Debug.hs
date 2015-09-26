@@ -8,6 +8,7 @@ import Lambda.Compiler
 import Lambda.Parser (readSExpr)
 import Lambda.Action
 import Lambda.Convertor
+import Lambda.Debug
 
 import Lambda.DataType
 import Lambda.DataType.Error.Eval (EvalError)
@@ -27,14 +28,14 @@ evalUnitTest name = (*:) $ RETURN $ META ("(evalUnitTest "++ show name ++")") $ 
     f :: Name -> Term -> Lambda ReturnT
     f name　unit@(LIST g msp) = localMSPBy msp $ do
         let xs = toList g
-        str <- rec (length xs, 0, 0, 0, "") (xs <$| \(TPL (TUPLE [expr, answer]) msp) -> (expr, answer, msp))
+        str <- rec (length xs, 0, 0, 0, "") $ xs <$| \(TPL (TUPLE [expr, answer]) msp) -> (expr, answer, msp)
         liftIO $ putStrLn str
         (*:) VOID
       where
         rec :: (Int, Int, Int, Int, String) -> [(Term, Term, MSP)] -> Lambda String
         rec (cases, tried, 0, 0, "") [] = (*:) $ 
             "unittest ["++ name ++"] - "++ 
-            "Cases: "++ show cases  ++"  "++ 
+            "Cases: "++ show cases ++"  "++ 
             "Tried: "++ show tried ++"  "++ 
             "Errors: 0  "++ 
             "Failures: 0"
@@ -52,7 +53,7 @@ evalUnitTest name = (*:) $ RETURN $ META ("(evalUnitTest "++ show name ++")") $ 
         rec (cases, tried, errors, failures, mes) ((term, answer, msp):xs) = localMSPBy msp $ catch $ do 
             expr <- restore term
             v <- thisEval_ term
-            if v /= answer
+            if show v /= show answer
             then do
                 answer <- restore answer
                 v <- restore v
@@ -101,25 +102,17 @@ evalShowExpr t = do
 
 evalShowContext :: Lambda ReturnT
 evalShowContext = do
-    ctx <- askContext
-    liftIO $ putStrLn $ "[Context]: "++ show ctx
+    showContext "---"
     (*:) VOID
 
-evalShowBindVars :: Lambda ReturnT
-evalShowBindVars = do
-    bindvars <- askBindVars
-    liftIO $ putStrLn $ "[BindVars]: "++ show bindvars
+evalShowDef :: Lambda ReturnT
+evalShowDef = do
+    showDef "---"
     (*:) VOID
-
-evalShowFreeVars :: Lambda ReturnT
-evalShowFreeVars = do
-    freevars <- getFreeVars
-    liftIO $ putStrLn $ "[FreeVars]: "++ show freevars
+evalShowDef_ :: Lambda ReturnT
+evalShowDef_ = do
+    showDef_ "---"
     (*:) VOID
-
-
-
-
 
 
 

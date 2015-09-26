@@ -47,7 +47,7 @@ unittest "lazy-evaluation: infinite list" [
     (nn !! 10,      11),
     
     (head (filter even nn),  2),
-    ((filter even nn) !! 10, 22),  -- TODO: memoize が未実装なのでとても計算が遅い
+    ((filter even nn) !! 5, 12),  -- TODO: memoize が未実装なのでとても計算が遅い
     ]
 
 

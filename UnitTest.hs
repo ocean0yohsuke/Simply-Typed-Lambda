@@ -118,9 +118,10 @@ testCase_Parser_Lexeme = (\t -> "Parser" ~: "Lexeme" ~: t) |$>
     , t "(λm::Int->Int.m 3)" ~?= "(\\m::(Int -> Int).(m 3))"
     , t "(λm::Int->Int.m 3) (λ_.1)" ~?= "((\\m::(Int -> Int).(m 3)) (\\_.1))"
 
+    , t "λx y. x"         ~?= "(\\x y.x)"
+    , t'' "λx y. x"         ~?= "LAM [(VAR \"x\",_),(VAR \"y\",_)] (VAR \"x\")"
     , t "λx::A.λy::A.x"     ~?= "(\\x::A.(\\y::A.x))"
-    , t "λx::A y::A. x"     ~?= "(\\x::A.\\y::A.x)"
-    , t "λx y. x"         ~?= "(\\x.\\y.x)"
+    , t "λx::A y::A. x"     ~?= "(\\x::A y::A.x)"
     , t "λx::A.(λy::A.x)"   ~?= "(\\x::A.(\\y::A.x))"
     , t "λx::A.λy::A.x y z" ~?= "(\\x::A.(\\y::A.(x y z)))"
     , t "(λx::A.λy::A.x) u v"       ~?= "((\\x::A.(\\y::A.x)) u v)"
@@ -288,11 +289,18 @@ testCase_desugar = (\t -> "desugar" ~: "" ~: t) |$>
     , t "λ_.x"    ~?= "\\_.x"
     , t "(λm::Int->Int.m 3)" ~?= "\\m::(Int -> Int).m 3"
 
+    , t "(λx y. x)"   ~?= "\\x.\\y.x"
     , t "λx::A.(λy::A.x)"   ~?= "\\x::A.\\y::A.x"
     , t "λx::A.λy::A.x"     ~?= "\\x::A.\\y::A.x"
     , t "λx::A.λy::A.x y z" ~?= "\\x::A.\\y::A.x y z"
     , t "(λx::A.λy::A.x) u v"       ~?= "(\\x::A.\\y::A.x) u v"
     , t "λu::A.λv::A.(λx::A.λy::A.x) u v" ~?= "\\u::A.\\v::A.(\\x::A.\\y::A.x) u v"
+
+    , t "(λa -> (λ(x,y) -> x) a)"  ~?= "\\a.(\\x.(\\y.x) a.2) a.1"
+    , t "(λ(x,y) -> x)"          ~?= "\\@x::(a1, a2).(\\x.(\\y.x) @x.2) @x.1"
+    , t "(λ(x:xs). x)"     ~?= "\\@x::[a1].(\\x.(\\xs.x) (tail @x)) (head @x)"
+    , t "(λ(x:xs). x) [1]" ~?= "(\\x.(\\xs.x) (tail [1])) (head [1])"
+    , t "(λ(x:xs)::[a]. x) [1]"   ~?= "(\\x::a.(\\xs::[a].x) (tail [1])) (head [1])"
 
     , t "let x::Int = 3 in x"           ~?= "(\\x::Int.x) 3"
 
@@ -308,7 +316,7 @@ testCase_desugar = (\t -> "desugar" ~: "" ~: t) |$>
     , t "letrec eq::Int->Int->Bool = (λm::Int.λn::Int. if iszero m then iszero n else if iszero n then False else eq (pred m) (pred n)) in eq 3 3"
    ~?= "(\\eq::(Int -> Int -> Bool).eq 3 3) (fix \\eq::(Int -> Int -> Bool).\\m::Int.\\n::Int.if iszero m then iszero n else if iszero n then False else eq (pred m) (pred n))"
 
-    , t "let (x,y) = (1,2) in x"  ~?= "(\\x.(\\y.x) 2) 1"
+     , t "let (x,y) = (1,2) in x" ~?= "(\\x.(\\y.x) 2) 1"
     , t "let ((x,y),z) = ((1,2),3) in y"  ~?= "(\\x.(\\y.(\\z.y) 3) 2) 1"
     , t "let (x,_) = (1,2) in x"  ~?= "(\\x.x) 1"
 
@@ -322,16 +330,18 @@ testCase_desugar = (\t -> "desugar" ~: "" ~: t) |$>
   where
     t = rsExpr $ \s -> 
         let (mv, _, _) = s >- desugarSExpr
-                           >- \x -> unsafePerformIO $ runLambda x initEnv initStates
+                           >- \x -> unsafePerformIO $ runDefault x
         in  case mv of 
               Left err -> show err
               Right v  -> show v
 
 testCase_toTerm = (\t -> "de Bruijn index" ~: "toTerm" ~: t) |$>
-    [ t "pred 99" ~?= "'0 99"
-    , t "λx::A. pred x" ~?= "\\ '1 '0"
+    [ t "pred 99" ~?= "'1 99"
 
-    , t "1 +" ~?= "'0 1"
+
+    , t "λx::A. pred x" ~?= "\\ '2 '0"
+
+    , t "1 +" ~?= "'8 1"
 
     , t "λx::A. λy::A. x" ~?= "\\ \\ '1"
     , t "λu::A.λv::A.(λx::A.λy::A.x) u v" ~?= "\\ \\ (\\ \\ '1) '1 '0"
@@ -346,6 +356,11 @@ testCase_toTerm = (\t -> "de Bruijn index" ~: "toTerm" ~: t) |$>
     , t "(λx::Bool. if x then 1 else 2) True" ~?= "(\\ if '0 then 1 else 2) True"
     , t "λ_.3"    ~?= "\\ 3"
     , t "(λm::Int->Int.m 3)" ~?= "\\ '0 3"
+
+    , t "(λx -> x)"         ~?= "\\ '0"
+    , t "(λ(x,y) -> x)"     ~?= "\\ (\\ (\\ '1) '1.2) '0.1"
+    , t "(λa -> (λ(x,y) -> x) a)"     ~?= "\\ (\\ (\\ '1) '1.2) '0.1"
+    , t "(λ(x,y) -> x) 99"     ~?= "(\\ (\\ '1) 99.2) 99.1"
 
     , t "(1, 2)" ~?= "(1, 2)"
     , t "(1, (λx::A.x), True)" ~?= "(1, \\ '0, True)"
@@ -362,20 +377,20 @@ testCase_toTerm = (\t -> "de Bruijn index" ~: "toTerm" ~: t) |$>
     , t "case 1 of 1 -> 2"   ~?= "case 1 of\n    1 -> 2"
 
     , t "#x -> x" ~?= "# '0"
-
+{--}
     ]
   where
     t = rsExpr $ \s -> 
-        let (mv, _, _) = (do e <- desugarSExpr s
-                             ctx <- makeNewContext e
-                             localContextBy ctx $ e >- (desugarExpr >=> toTerm))
-                         >- \x -> unsafePerformIO $ runLambda x initEnv initStates
+        let (mv, _, _) = s >- (desugarSExpr >=> desugarExpr >=> toTerm)
+                           >- \x -> unsafePerformIO $ runDefault x
         in  case mv of 
               Left err -> show err
               Right v  -> show v
 
 testCase_restore = (\t -> "de Bruijn index" ~: "restore" ~: t) |$>
     [ t "pred 99" ~?= "pred 99"
+
+
     , t "λx::A. pred x" ~?= "\\x::A.pred x"
 
     , t "λx::A. λy::A. x" ~?= "\\x::A.\\y::A.x"
@@ -388,7 +403,9 @@ testCase_restore = (\t -> "de Bruijn index" ~: "restore" ~: t) |$>
     , t "(+) 1 2" ~?= "(+) 1 2"
     , t "1 + 2" ~?= "(+) 1 2"
     , t "1+" ~?= "(+) 1"
-    , t "+1" ~?= "\\l::Int.(+) l 1"
+
+    , t "+1" ~?= "\\l::a1.(+) l 1"
+
     , t "1 + 2 * 3" ~?= "(*) ((+) 1 2) 3"
 
     , t "λs::A. λz::A. z"     ~?= "\\s::A.\\z::A.z"
@@ -397,7 +414,7 @@ testCase_restore = (\t -> "de Bruijn index" ~: "restore" ~: t) |$>
     , t "λf::A. (λx::A. f (λy::A. x x y)) (λx::A. f (λy::A. x x y))"     ~?= "\\f::A.(\\x::A.f (\\y::A.x x y)) (\\x::A.f (\\y::A.x x y))"
     , t "(λx::A. (λx::A. x)) (λx::A. x)"    ~?= "(\\x::A.\\x::A.x) (\\x::A.x)"
     , t "(λx::Bool. if x then 1 else 2) True" ~?= "(\\x::Bool.if x then 1 else 2) True"
-    , t "λ_.3"    ~?= "\\_.3"
+    , t "λ_.3"    ~?= "\\_::a1.3"
     , t "(λm::Int->Int.m 3)" ~?= "\\m::(Int -> Int).m 3"
 
     , t "(1, 'a')" ~?= "(1, 'a')"
@@ -408,80 +425,85 @@ testCase_restore = (\t -> "de Bruijn index" ~: "restore" ~: t) |$>
     , t "[]" ~?= "[]"
     , t "[1, 2, 3]" ~?= "[1,2,3]"
 
-    , t "let (x,y) = (1,2) in x"  ~?= "(\\x.(\\y.x) 2) 1"
-    , t "let ((x,y),z) = ((1,2),3) in y"  ~?= "(\\x.(\\y.(\\z.y) 3) 2) 1"
+    , t "let (x,y) = (1,2) in x"  ~?= "(\\x::a1.(\\y::a2.x) 2) 1"
+    , t "let ((x,y),z) = ((1,2),3) in y"  ~?= "(\\x::a1.(\\y::a2.(\\z::a3.y) 3) 2) 1"
 
-    , t "let x = 1 in case x of 1 -> 2"   ~?= "(\\x.case x of\n    1 -> 2) 1"
+    , t "let x = 1 in case x of 1 -> 2"   ~?= "(\\x::a1.case x of\n    1 -> 2) 1"
     , t "case 1 of 1 -> 2"   ~?= "case 1 of\n    1 -> 2"
 
-    , t "let x = 1 in case x of 1 -> 2" ~?= "(\\x.case x of\n    1 -> 2) 1"
+    , t "let x = 1 in case x of 1 -> 2" ~?= "(\\x::a1.case x of\n    1 -> 2) 1"
 
-    , t "#x -> x" ~?= "#x.x"
+    , t "#x -> x" ~?= "#x::a1.x"
+{--}
     ]
   where
     t = rsExpr $ \s ->
-        let (mv, _, _) = (do e <- desugarSExpr s
-                             ctx <- makeNewContext e
-                             localContextBy ctx $ e >- (desugarExpr >=> toTerm >=> restore))
-                         >- \x -> unsafePerformIO $ runLambda x initEnv initStates
+        let (mv, _, _) = s >- (desugarSExpr >=> desugarExpr >=> toTerm >=> restore)
+                           >- \x -> unsafePerformIO $ runDefault x
         in  case mv of 
               Left err -> show err
               Right v  -> show v
     t' = rsExpr $ \s ->
-        let (mv, _, _) = (do e <- desugarSExpr s
-                             ctx <- makeNewContext e
-                             localContextBy ctx $ e >- (desugarExpr >=> toTerm >=> restore))
-                         >- \x -> unsafePerformIO $ runLambda x initEnv initStates
+        let (mv, _, _) = s >- (desugarSExpr >=> desugarExpr >=> toTerm >=> restore)
+                           >- \x -> unsafePerformIO $ runDefault x
         in  case mv of 
               Left err -> show err
               Right v  -> show v
 
 testCase_typeof = fmap (\t -> "typeof" ~: "" ~: t)
     [ 
-     t "λu::A.u" ~?= "A -> A"
+
+      t "λu::A.u" ~?= "A -> A"
 
     , t "(λx::Bool.x) True" ~?= "Bool"
     , t "(λx::Int.x) 3"     ~?= "Int"
-    , t "(λx::Str.x) \"abc\"" ~?= "[Char]"
+    , t "(λx::[Char].x) \"abc\"" ~?= "[Char]"
     , t "if True then 1 else 2" ~?= "Int"
 
-    , t "(λ_.3)"      ~?= "_ -> Int"
+    , t "(λ_.3)"      ~?= "a1 -> Int"
     , t "(λ_.3) True" ~?= "Int"
     , t "(λm::Int->Int.m 3)" ~?= "(Int -> Int) -> Int"
-    , t "let x = 3 in x"  ~?= "Int"
+
+    , t "(λx. x)"        ~?= "a1 -> a1"
+    , t "(λx. x) 3"      ~?= "Int"
+    , t "let x = 3 in x" ~?= "Int"
+
     , t "pred 3"        ~?= "Int"
-    , t "[]"        ~?= "[_]"
+
+    , t "[]"        ~?= "[a1]"
     , t "[1, 2, 3]" ~?= "[Int]"
-
     , t "head [1, 2, 3]" ~?= "Int"
-
 
     , t "(λeq::Int->Int->Bool.λm::Int.λn::Int. if iszero m then iszero n else if iszero n then False else eq (pred m) (pred n))"
              ~?= "(Int -> Int -> Bool) -> Int -> Int -> Bool"
     , t "fix (λeq::Int->Int->Bool.λm::Int.λn::Int. if iszero m then iszero n else if iszero n then False else eq (pred m) (pred n))"
              ~?= "Int -> Int -> Bool"
 
-
-    , t "(λm::a->a. m 3)" ~?= "(a -> a) -> Int"
-
     , t "letrec eq::Int->Int->Bool = (λm::Int.λn::Int. if iszero m then iszero n else if iszero n then False else eq (pred m) (pred n)) in eq 3 3"
        ~?= "Bool"
 
-    , t "let (x,y) = (1,2) in x"         ~?= "Int"
+    , t "(λx -> x)"               ~?= "a1 -> a1"
+    , t "(λ(x,y) -> x)"           ~?= "(a6, a2) -> a6"
+    , t "(λm::a->a. m 3)" ~?= "(Int -> Int) -> Int"
+
+    , t "(\\x.(\\y.x) 2) 1"       ~?= "Int"
+    , t "(λ(x,y) -> x) (1,2)"     ~?= "Int"
+    , t "let (x,y) = (1,2) in x"  ~?= "Int"
+
     , t "let ((x,y),z) = ((1,2),3) in y" ~?= "Int"
 
     , t "let x = 1 in case 1 of 1 -> 2" ~?= "Int"
     , t "let x = 1 in case x of 1 -> 2" ~?= "Int"
-    
-    , t "#x -> x" ~?= "_ -> _"
+  
+    , t "#x -> x" ~?= "a1 -> a1"
+
+    , t "if True then (if False then x else 10) else x + y + 20" ~?= "Int"
 
    ]
   where 
     t = rsExpr $ \s ->
-        let (mv, _, _) = (do e <- desugarSExpr s
-                             ctx <- makeNewContext e
-                             localContextBy ctx $ typeofExpr e)
-                         >- \x -> unsafePerformIO $ runLambda x initEnv initStates
+        let (mv, _, _) = s >- (desugarSExpr >=> desugarExpr >=> toTerm >=> typeofTerm)
+                           >- \x -> unsafePerformIO $ runDefault x
         in  case mv of 
               Left err -> show err
               Right v  -> show v
@@ -525,6 +547,8 @@ testCase_eval = fmap (\t -> "eval" ~: "" ~: t)
     , t "letrec eq::Int->Int->Bool = (λm::Int.λn::Int. if iszero m then iszero n else if iszero n then False else eq (pred m) (pred n)) in eq 3 3"
        ~?= "True"
 
+    , t "(λx. x) 3" ~?= "3"
+    , t "let x = 3 in x"          ~?= "3"
     , t "let (x,y) = (1,2) in x"          ~?= "1"
     , t "let ((x,y),z) = ((1,2),3) in y"  ~?= "2"
     , t "let (x,_) = (1,2) in x"          ~?= "1"
@@ -537,7 +561,7 @@ testCase_eval = fmap (\t -> "eval" ~: "" ~: t)
     ]
   where 
     t = rsExpr $ \s -> 
-        let (mv, _, _) = unsafePerformIO $ runLambdaE (initEnv, initStates) s
+        let (mv, _, _) = unsafePerformIO $ runDefault (interpretE s)
         in  case mv of 
               Left err -> show err
               Right (RETURN v) -> show v

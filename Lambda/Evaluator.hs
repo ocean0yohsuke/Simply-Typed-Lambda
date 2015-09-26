@@ -1,4 +1,10 @@
-module Lambda.Evaluator where
+module Lambda.Evaluator (
+    runDefault, 
+    runInterpretE, runInterpretT,
+    interpretT, interpretE,
+
+    initEnv, initStates, 
+) where
 
 import MonadX.Applicative
 import MonadX.Monad
@@ -6,14 +12,14 @@ import MonadX.Monad
 import Config
 import Lambda.Evaluator.Eval
 import Lambda.Evaluator.LazyEval
-import Lambda.Evaluator.GEnv (initGEnv)
+import Lambda.Evaluator.Def (initDef)
 import Lambda.Compiler 
-
 import qualified Lambda.DataType.Type as Ty
 import Lambda.DataType
 
 import qualified Data.Map as M
 import Data.Traversable as Trav
+import Data.IORef
 
 -- for debug
 import Debug.Trace 
@@ -23,35 +29,51 @@ import Debug.Trace
 -------------------------------------
 
 initEnv :: LambdaEnv
-initEnv = LambdaEnv initBindVars initContext initMSP initConfig
+initEnv = LambdaEnv initContext initMSP initConfig
+  where
+    initContext :: Context
+    initContext = []
+    initMSP :: MSP
+    initMSP = Nothing
 
 initStates :: LambdaStates
-initStates = (initFreeVars, initGEnv, initTypeDef)
-  
--------------------------------------
--- init
--------------------------------------
-
-initBindVars :: BindVars
-initBindVars = []
-initContext :: Context
-initContext = M.empty
-initMSP :: MSP
-initMSP = Nothing
-
-initFreeVars :: FreeVars
-initFreeVars = []
-
-initTypeDef :: TypeDef
-initTypeDef = M.empty
+initStates = (initDef, initTypeDef, initTypeVarCounter)
+  where
+    initTypeDef :: TypeDef
+    initTypeDef = M.empty
+    initTypeVarCounter :: TypeVarCounter
+    initTypeVarCounter = 1
 
 -------------------------------------
--- eval
+-- runDefault
 -------------------------------------
 
-runLambdaE :: (LambdaEnv, LambdaStates) -> SExpr -> IO (Either LambdaError ReturnE, LambdaStates, ())
-runLambdaE (env, states) s = runLambda (returnE s) env states
+runDefault :: Lambda a -> IO (Either LambdaError a, LambdaStates, ())
+runDefault lam = runLambda lam initEnv initStates
 
-runLambdaT :: (LambdaEnv, LambdaStates) -> SExpr -> IO (Either LambdaError ReturnT, LambdaStates, ())
-runLambdaT (env, states) s = runLambda (returnT s) env states
+runInterpretT :: (LambdaEnv, LambdaStates) -> SExpr -> IO (Either LambdaError ReturnT, LambdaStates, ())
+runInterpretT (env, states) s = runLambda (s >- (compile >=> thisEval)) env states
+
+runInterpretE :: (LambdaEnv, LambdaStates) -> SExpr -> IO (Either LambdaError ReturnE, LambdaStates, ())
+runInterpretE (env, states) s = runLambda (s >- (compile >=> thisEval >=> \return -> 
+                                    case return of
+                                      VOID     -> (*:) VOID
+                                      RETURN t -> RETURN |$> restore t)) env states
+{-
+runInterpretT :: (LambdaEnv, LambdaStates) -> SExpr -> IO (Either LambdaError ReturnT, LambdaStates, ())
+runInterpretT (env, states) s = do
+    (mv, s, w) <- runLambda (compile s) env states
+    case mv of 
+      Left err   -> (*:) (Left err, s, w)
+      Right term -> runLambda (thisEval term) env states
+runInterpretE :: (LambdaEnv, LambdaStates) -> SExpr -> IO (Either LambdaError ReturnE, LambdaStates, ())
+runInterpretE (env, states) s = do
+    (mv, s, w) <- runLambda (compile s) env states
+    case mv of 
+      Left err   -> (*:) (Left err, s, w)
+      Right term -> runLambda (thisEval term >>= \return -> 
+                        case return of
+                          VOID     -> (*:) VOID
+                          RETURN t -> RETURN |$> restore t) env states
+-}
 

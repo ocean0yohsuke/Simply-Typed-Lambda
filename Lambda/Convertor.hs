@@ -1,21 +1,21 @@
 {-# LANGUAGE MultiParamTypeClasses, TypeSynonymInstances #-}
 module Lambda.Convertor (
+    module Lambda.Convertor.Type,
     module Lambda.Convertor.PatternMatch,
     module Lambda.Convertor.SExpr,
     module Lambda.Convertor.Expr,
     module Lambda.Convertor.Term,
-    module Lambda.Convertor.Util,
 
 ) where
 
 import MonadX.Applicative
 import MonadX.Monad
 
+import Lambda.Convertor.Type
 import Lambda.Convertor.PatternMatch
 import Lambda.Convertor.SExpr
 import Lambda.Convertor.Expr
 import Lambda.Convertor.Term
-import Lambda.Convertor.Util
 
 import Lambda.DataType 
 import qualified Lambda.DataType.SExpr as SE
@@ -145,4 +145,16 @@ instance Convert PM Term where
     convert (PM.TUPLE xs msp)    = TPL (TUPLE (convert |$> xs)) msp
     convert (PM.TAG name xs msp) = TAG (TAGAs name (convert |$> xs)) msp
 
+{-
+instance Convert PM Expr where
+    convert (PM.UNIT msp)        = E.UNIT msp
+    convert (PM.VAR name msp)    = E.UNIT msp
+    convert (PM.BOOL x msp)      = E.BOOL x msp
+    convert (PM.INT x msp)       = E.INT x msp
+    convert (PM.CHAR x msp)      = E.CHAR x msp
+    convert (PM.NIL msp)         = E.LIST NIL msp
+    convert (PM.CONS x y msp)    = E.LIST (CONS (convert x) (convert y)) msp
+    convert (PM.TUPLE xs msp)    = E.TPL (TUPLE (convert |$> xs)) msp
+    convert (PM.TAG name xs msp) = E.TAG (TAGAs name (convert |$> xs)) msp
+-}
 

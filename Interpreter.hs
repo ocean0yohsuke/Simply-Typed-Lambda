@@ -9,6 +9,7 @@ import Lambda.DataType
 
 import System.IO
 import qualified Data.Map as M 
+import Data.IORef
 
 main :: IO ()
 main = run
@@ -18,6 +19,8 @@ run = do
     xs <- hGetContents stdin
     putStr "> "
     putStrLn ""
+    ref <- newIORef initContext
+    let initEnv = LambdaEnv ref initMSP initConfig
     repl (initEnv, initStates) xs
 
 ----------------------------------------------------------------------------------------------------------------
@@ -38,7 +41,7 @@ repl (env, states) xs = do
       Right (LINEBREAK, rest) -> repl (env, states) rest
       Right (EOF, _)          -> (*:) ()
       Right (EXPR sexpr, rest) -> do
-          (mv, states', _) <- runLambdaE (env, states) sexpr
+          (mv, states', _) <- runInterpretE (env, states) sexpr
           case mv of
             Left err            -> showError err >> repl (env, states') rest
             Right (RETURN expr) -> do

@@ -19,42 +19,19 @@ import Debug.Trace
 -- restore pattern match
 ----------------------------------------------------------------------
 
-restorePM :: PM -> Lambda (PM, BindVars)
+restorePM :: PM -> Lambda PM
 restorePM (PM.VAR name msp) = localMSPBy msp $ do
-    binds <- askBindVars
-    frees <- getFreeVars
-    if name `elem` frees
+    genv <- getDef
+    let freevars = fst |$> genv
+    if name `elem` freevars
     then do
-        newvar <- newVar 
-        (*:) (PM.VAR newvar msp, newvar:binds)
-    else (*:) (PM.VAR name msp, name:binds) 
+        let newvar = newVar freevars
+        (*:) $ PM.VAR newvar msp
+    else (*:) $ PM.VAR name msp
   where
-    newVar :: Lambda String
-    newVar = do
-        frees <- getFreeVars
-        (*:) $ (name++) |$> semiInfinitePostfixes
-               >- filter (\x -> not (x `elem` frees))
-               >- head
-restorePM pm = case pm of
-    PM.CONS _ _ msp     -> localMSPBy msp $ do
-        (pms, binds) <- rec (L.toList pm) []
-        (*:) $ (L.fromList pms, binds)
-    PM.TUPLE pms msp    -> localMSPBy msp $ do
-        (pms, binds) <- rec pms []
-        (*:) $ (PM.TUPLE pms msp, binds)
-    PM.TAG name pms msp -> localMSPBy msp $ do
-        (pms, binds) <- rec pms []
-        (*:) $ (PM.TAG name pms msp, binds)
-    _ -> do
-        binds <- askBindVars
-        (*:) (pm, binds)
-  where
-    rec :: [PM] -> [PM] -> Lambda ([PM], BindVars)
-    rec []       pms = do
-        binds <- askBindVars
-        (*:) (pms, binds)
-    rec (pm:pms) pms' = do
-        (pm', binds) <- restorePM pm
-        localBindVars (const binds) $ rec pms (pms'++[pm'])
-
+    newVar :: [Name] -> String
+    newVar frees = (name++) |$> semiInfinitePostfixes
+                   >- filter (\x -> not (x `elem` frees))
+                   >- head
+restorePM pm = (*:) pm
 

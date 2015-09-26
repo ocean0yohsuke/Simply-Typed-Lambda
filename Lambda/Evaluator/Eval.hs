@@ -1,5 +1,7 @@
 module Lambda.Evaluator.Eval (
-    compile, returnE, returnT,
+    compile, 
+    -- runInterpretE, runInterpretT,
+    interpretT, interpretE,
 
     thisEval, thisEval_,
     eval1, eval, 
@@ -33,7 +35,29 @@ import Data.List
 import Debug.Trace 
 
 ----------------------------------------------------------------------
--- eval
+-- 
+----------------------------------------------------------------------
+
+compile :: SExpr -> Lambda Term
+compile code = do
+    e <- desugarSExpr code
+    t <- e >- (desugarExpr >=> toTerm)
+    ty <- t >- typeofTerm
+    case ty of
+      Ty.UNIT -> t >- evalMacro
+      _       -> t >- evalMacro
+
+interpretT :: SExpr -> Lambda ReturnT
+interpretT = compile >=> thisEval
+interpretE :: SExpr -> Lambda ReturnE
+interpretE se = do
+    v <- se >- (compile >=> thisEval)
+    case v of
+      VOID     -> (*:) VOID
+      RETURN t -> RETURN |$> restore t
+
+----------------------------------------------------------------------
+-- 
 ----------------------------------------------------------------------
 
 thisEval :: Term -> Lambda ReturnT
@@ -53,41 +77,20 @@ thisEval_ = thisEval >=> catchVoid
 eval_ :: Term -> Lambda Term
 eval_ = eval >=> catchVoid
 
-compile :: SExpr -> Lambda Term
-compile code = do
-    e <- desugarSExpr code
-    ctx <- makeNewContext e
-    e <- localContextBy ctx (desugarExpr e)
-    ty <- localContextBy ctx (typeofExpr e)
-    case ty of
-      Ty.UNIT -> localContextBy ctx $ e >- (toTerm >=> evalMacro)
-      _       -> localContextBy ctx $ e >- (toTerm >=> evalMacro)
-
-returnT :: SExpr -> Lambda ReturnT
-returnT = compile >=> thisEval
-returnE :: SExpr -> Lambda ReturnE
-returnE se = do
-    v <- se >- (compile >=> thisEval)
-    case v of
-      VOID     -> (*:) VOID
-      RETURN t -> RETURN |$> restore t
-
 ----------------------------------------------------------------------
 -- eval1
 ----------------------------------------------------------------------
 
 eval1 :: Term -> Lambda Term
 eval1 (VAR index msp) = localMSPBy msp $ do
-    name <- restoreIndex index
-    mv <- lookupGEnv name
+    mv <- indexToTerm index
     case mv of
-      Nothing              -> throwEvalError $ strMsg $ "unbound variable: "++ name
-      Just (_, CONST _ fc) -> fc 
-      Just (_, COMND _ fc) -> fc >>= catchVoid
-      --Just (_, v)          -> (*:) v
-      Just (_, v)          -> do
-        binds <- askBindVars
-        (*:) $ shift (length binds) 0 v
+      Just (CONST _ fc) -> fc 
+      Just (COMND _ fc) -> fc >>= catchVoid
+      Just v -> do
+        ctx <- askContext 
+        (*:) $ shift (length ctx) 0 v
+      Nothing -> throwCompileError $ strMsg $ "eval1: index is too large: "++ show index
 eval1 (FIX lam@(LAM _ t _) msp) = localMSPBy msp $ (*:) $ betaReduce (FIX lam msp) t
 eval1 (APP t arg msp) = case t of
     AFUNC _ fc  -> 
@@ -170,16 +173,12 @@ eval1 v = (*:) v
 
 eval :: Term -> Lambda ReturnT
 eval (VAR index msp) = localMSPBy msp $ do
-    name <- restoreIndex index
-    mv <- lookupGEnv name
+    mv <- indexToTerm index
     case mv of
-      Nothing              -> throwEvalError $ strMsg $ "unbound variable: "++ name
-      Just (_, CONST _ fc) -> RETURN |$> fc 
-      Just (_, COMND _ fc) -> fc
-      --Just (_, v)          -> (*:) $ RETURN v
-      Just (_, v)          -> do
-        binds <- askBindVars
-        (*:) $ RETURN $ shift (length binds) 0 v
+      Just (CONST _ fc) -> RETURN |$> fc 
+      Just (COMND _ fc) -> fc 
+      Just v            -> (*:) $ RETURN v
+      Nothing -> throwCompileError $ strMsg $ "eval: index is too large: "++ show index
 eval (FIX lam@(LAM _ t _) msp) = localMSPBy msp $ eval $ betaReduce (FIX lam msp) t
 eval (APP t arg msp) = localMSPBy msp $ do
     x <- eval_ t
@@ -191,7 +190,9 @@ eval (APP t arg msp) = localMSPBy msp $ do
       LAM (pm, _) t msp  -> localMSPBy msp $ do
         arg <- eval_ arg
         t >- (betaReducePM (pm, arg) >=> eval)
-      _ -> throwEvalError $ strMsg $ "eval: APP: invalid operator detected: " ++ show t
+      _ -> do
+        e <- restore t
+        throwEvalError $ strMsg $ "eval: APP: invalid operator detected: " ++ show e
 eval (SYN s msp) = localMSPBy msp $ case s of 
     IF cond t1 t2 -> do
         bool <- eval_ cond
@@ -202,24 +203,15 @@ eval (SYN s msp) = localMSPBy msp $ case s of
         x' <- eval_ x
         gointoCaseRoute x' pairs >>= eval
 eval (SEN s msp) = localMSPBy msp $ case s of 
-    TYPESig (name, ty) -> do
-        mv <- lookupGEnv name
-        case mv of
-          Just _  -> throwEvalError $ strMsg $ "DEF: multiple type-signature declarations: " ++ name
-          Nothing -> pushGEnv name (ty, UNIT Nothing) >> (*:) VOID
-    DEF name t         -> do
-        mv <- lookupGEnv name
-        case mv of
-          Just (ty, UNIT Nothing) -> do
-              v <- eval_ t 
-              pushGEnv name (ty, v)
-              (*:) VOID
-          Just (ty, _)            -> throwEvalError $ strMsg $ "DEF: multiple function declarations: " ++ name
+    TYPESig (name, ty) -> insertDef name (ty, unit) >> (*:) VOID
+    DEF name t        -> do
+        v <- eval_ t 
+        insertDef name (Ty.UNIT, v)
+        (*:) VOID
     BNF typename pairs -> do
         pushTypeDef typename pairs
         forM_ pairs $ \(tagname, tys) -> do
             (lamtag, ty) <- fromBNFtoLAM typename (tagname, tys)
-            pushGEnv tagname (ty, UNIT Nothing)
             eval $ SEN (DEF tagname lamtag) Nothing
         (*:) VOID
 -- quote
@@ -264,15 +256,14 @@ eval v = (*:) $ RETURN v
 ----------------------------------------------------------------------
 
 evalMacro :: Term -> Lambda Term
-evalMacro t@(VAR index msp) = localMSPBy msp $ do 
-    name <- restoreIndex index
-    mv <- lookupGEnv name
+evalMacro t@(VAR index msp) = localMSPBy msp $ do
+    mv <- indexToTerm index 
     case mv of
-      --Just (_, v@(LAMM _ _ _)) -> (*:) v
-      Just (_, v@(LAMM _ _ _)) -> do
-        binds <- askBindVars
-        (*:) $ shift (length binds) 0 v
-      _                        -> (*:) t
+      Just v@(LAMM _ _ _) -> do
+        ctx <- askContext
+        (*:) $ shift (length ctx) 0 v
+      Just _ -> (*:) t
+      Nothing -> throwCompileError $ strMsg $ "evalMacro: index is too large: "++ show index
 evalMacro (APP x arg msp) = localMSPBy msp $ do
     v <- evalMacro x
     case v of
@@ -280,6 +271,7 @@ evalMacro (APP x arg msp) = localMSPBy msp $ do
         arg <- evalMacro arg
         t >- (betaReducePM (pm, arg) >=> eval_)
       _ -> APP v |$> evalMacro arg |* msp
+evalMacro t@(QUT _ _) = (*:) t
 evalMacro x = pdmapM evalMacro x
 
 

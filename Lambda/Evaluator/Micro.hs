@@ -67,6 +67,3 @@ evalNull (LIST NIL _) = (*:) $ bool True
 evalNull _            = (*:) $ bool False
 
 
-
-
-

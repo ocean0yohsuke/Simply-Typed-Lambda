@@ -55,7 +55,7 @@ unittest "factorial" [
     (factorial 1, 1),
     (factorial 2, 2),
     (factorial 3, 6),
-    -- (factorial 4, 24),
+    (factorial 4, 24),
     -- (factorial 5, 120),
     -- (factorial 6, 720),
     -- (factorial 10, 120),  -- 正格評価でも遅い

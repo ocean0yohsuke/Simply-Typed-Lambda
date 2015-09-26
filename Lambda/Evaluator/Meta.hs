@@ -26,11 +26,9 @@ iterateM n f = f >=> (iterateM (n-1) f)
 -- eval
 ----------------------------------------------------------------------
 
--- TODO: Qut 
 evalEval :: Term -> Lambda ReturnT
 evalEval t = t >- eval
 
--- TODO: Qut 
 evalEvalN :: Term -> Lambda ReturnT
 evalEvalN int@(INT n _) = (*:) $ RETURN $ META ("(evalN "++ show int ++")") $ fromInteger n >- f
   where
@@ -41,11 +39,9 @@ evalEvalN int@(INT n _) = (*:) $ RETURN $ META ("(evalN "++ show int ++")") $ fr
         liftIO $ putStrLn $ show e  
         (*:) VOID
 
--- TODO: Qut 
 evalLazyEval :: Term -> Lambda ReturnT
 evalLazyEval t = t >- lazyEval
 
--- TODO: Qut 
 evalLazyEvalN :: Term -> Lambda ReturnT
 evalLazyEvalN int@(INT n _) = (*:) $ RETURN $ META ("(lazyEvalN "++ show int ++")") $ fromInteger n >- f
   where
@@ -56,17 +52,14 @@ evalLazyEvalN int@(INT n _) = (*:) $ RETURN $ META ("(lazyEvalN "++ show int ++"
         liftIO $ putStrLn $ show e  
         (*:) VOID
 
--- TODO: Qut 
-evalMacroExpand :: Term -> Lambda ReturnT
-evalMacroExpand t = RETURN |$> (t >- evalMacro)
-
--- TODO: Qut 
 evalTypeof :: Term -> Lambda ReturnT
 evalTypeof t = do
-    ty <- t >- (restore >=> typeofExpr)
+    ty <- t >- typeofTerm
     liftIO $ putStrLn $ show ty
     (*:) VOID
-    
+
+evalMacroExpand :: Term -> Lambda Term
+evalMacroExpand t = t >- evalMacro
 
 ----------------------------------------------------------------------
 -- compile

@@ -7,7 +7,7 @@ import MonadX.Monad hiding (forM, mapM)
 import Lambda.DataType (Lambda)
 import Lambda.DataType.Expr
 import Lambda.Action
-import Lambda.Convertor.Util
+import Lambda.Convertor.PatternMatch 
 import Util.Pseudo
 
 import Prelude hiding (forM, mapM)
@@ -52,8 +52,8 @@ instance PseudoFoldable Expr where
     pdfoldMap f x               = f x
 
 instance PseudoTraversable Lambda Expr where
-    pdmapM f (LAM (pm, ty) x msp)  = localMSPBy msp $ LAM (pm, ty) |$> localLAMPushPM pm (f x) |* msp
-    pdmapM f (LAMM (pm, ty) x msp) = localMSPBy msp $ LAMM (pm, ty) |$> localLAMPushPM pm (f x) |* msp
+    pdmapM f (LAM p x msp)   = localMSPBy msp $ LAM p |$> localLAMPush p (f x) |* msp
+    pdmapM f (LAMM p x msp)  = localMSPBy msp $ LAMM p |$> localLAMPush p (f x) |* msp
     pdmapM f (FIX x msp)     = localMSPBy msp $ FIX |$> f x |* msp
     pdmapM f (APP x1 x2 msp) = localMSPBy msp $ APP |$> f x1 |*> f x2 |* msp
     pdmapM f (APPSeq xs msp) = localMSPBy msp $ APPSeq |$> mapM f xs |* msp

@@ -1,9 +1,9 @@
-module Lambda.Evaluator.GEnv where
+module Lambda.Evaluator.Def where
 
 import MonadX.Applicative
 import MonadX.Monad
 
-import Lambda.DataType (Term(CONST, COMND, AFUNC, WAFUNC, PROC, META), GEnv)
+import Lambda.DataType (Term(CONST, COMND, AFUNC, WAFUNC, PROC, META), Name, Def)
 import Lambda.DataType.Type
 import Lambda.Evaluator.Micro
 import Lambda.Evaluator.Prelude
@@ -11,24 +11,22 @@ import Lambda.Evaluator.Meta
 import Lambda.Evaluator.Debug
 import Lambda.Evaluator.IO
 
-import qualified Data.Map as M
-
 -- for debug
 import Debug.Trace 
 
-initGEnv :: GEnv
-initGEnv =    microGEnv 
-    `M.union` preludeGEnv 
-    `M.union` metaGEnv
-    `M.union` debugGEnv 
-    `M.union` ioGEnv 
+initDef :: Def
+initDef = microContext 
+        ++ preludeContext 
+        ++ metaContext
+        ++ debugContext 
+        ++ ioContext
 
 ----------------------------------------------------------------------
--- GEnv
+-- Context
 ----------------------------------------------------------------------
 
-microGEnv :: GEnv
-microGEnv = M.fromList [
+microContext :: Def
+microContext = [
     -- primitive
       ("iszero", (INT :-> BOOL,  AFUNC "iszero" evalIsZero))
     , ("pred",   (INT :-> INT,   AFUNC "pred" evalPred))
@@ -43,8 +41,8 @@ microGEnv = M.fromList [
     , ("null", (CONS (VAR "a") :-> BOOL,                       AFUNC "null" evalNull))
     ]
 
-preludeGEnv :: GEnv
-preludeGEnv = M.fromList [
+preludeContext :: Def
+preludeContext = [
     -- arithmetic
       ("+",   (INT :-> INT :-> INT,  AFUNC "(+)" evalPlus))
     , ("-",   (INT :-> INT :-> INT,  AFUNC "(-)" evalMinus))
@@ -61,14 +59,14 @@ preludeGEnv = M.fromList [
     , ("show", (VAR "a" :-> CONS CHAR, AFUNC "show" evalShow))
     ]
 
-metaGEnv :: GEnv
-metaGEnv = M.fromList [
+metaContext :: Def
+metaContext = [
     -- evaluator
-      ("eval",         (UNIT :-> UNIT,             META "eval" evalEval))
-    , ("evalN",        (INT :-> UNIT :-> UNIT,     META "evalN" evalEvalN))
-    , ("lazyeval",     (UNIT :-> UNIT,             META "lazyeval" evalLazyEval))
-    , ("lazyevalN",    (INT :-> UNIT :-> UNIT,     META "lazyevalN" evalLazyEvalN))
-    , ("macro_expand", (UNIT :-> UNIT,             META "evalMacroExpand" evalMacroExpand))
+      ("eval",         (UNIT :-> UNIT,          META "eval" evalEval))
+    , ("evalN",        (INT :-> UNIT :-> UNIT,  META "evalN" evalEvalN))
+    , ("lazyeval",     (UNIT :-> UNIT,          META "lazyeval" evalLazyEval))
+    , ("lazyevalN",    (INT :-> UNIT :-> UNIT,  META "lazyevalN" evalLazyEvalN))
+    , ("macro_expand", (QUT :-> UNIT,           AFUNC "evalMacroExpand" evalMacroExpand))
 
 　   , ("typeof",  　　(UNIT :-> UNIT,  　　　　　　　　　　　META "typeof" evalTypeof))
 
@@ -79,21 +77,21 @@ metaGEnv = M.fromList [
 
     ]
 
-debugGEnv :: GEnv
-debugGEnv = M.fromList [
+debugContext :: Def
+debugContext = [
       ("unittest", (CONS CHAR :-> CONS (TUPLE [UNIT, UNIT]) :-> CONS CHAR,     META "unittest" evalUnitTest))
 
     -- show
     , ("showExpr",  (CONS CHAR :-> CONS CHAR,  PROC "showExpr" evalShowExpr))
     , ("showSExpr", (CONS CHAR :-> CONS CHAR,  PROC "showSExpr" evalShowSExpr))
 
-    , ("showContext",  (NULL, COMND "showContext" evalShowContext))
-    , ("showBindVars", (NULL, COMND "showBindVars" evalShowBindVars))
-    , ("showFreeVars", (NULL, COMND "showFreeVars" evalShowFreeVars))
+    , ("showContext", (NULL, COMND "showContext" evalShowContext))
+    , ("showDef",     (NULL, COMND "showDef" evalShowDef))
+    , ("showDef_",    (NULL, COMND "showDef_" evalShowDef_))
     ]
 
-ioGEnv :: GEnv
-ioGEnv = M.fromList [
+ioContext :: Def
+ioContext = [
       ("import", (CONS CHAR :-> NULL,     PROC "import" evalImport))
 
     , ("print",  (VAR "a" :-> NULL,             AFUNC "print" evalPrint))

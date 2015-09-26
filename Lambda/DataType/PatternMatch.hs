@@ -6,6 +6,7 @@ import Lambda.DataType.Common
 import qualified Lambda.DataType.Type as Ty
 import qualified Util.LISP as L
 
+import Prelude hiding (concat)
 import Data.List (intersperse)
 import Data.Foldable
 

@@ -13,8 +13,9 @@ import qualified Lambda.DataType.Error.Compile as CE
 import qualified Lambda.DataType.Error.Eval as EE
 
 import Data.List (lookup, elemIndex)
-import System.IO 
 import qualified Data.Map as M
+import Data.IORef
+import System.IO 
 
 -- for debug
 import Debug.Trace
@@ -75,114 +76,82 @@ throwTypeofError mes = throwCompileError $ CE.TYPEOF mes
 --
 -- LambdaEnv
 --
-askBindVars :: Lambda BindVars
-askBindVars = bindVars |$> ask
-localBindVars :: (BindVars -> BindVars) -> Lambda a -> Lambda a
-localBindVars f = local (\env -> setBindVars (f (bindVars env)) env)
-
 askContext :: Lambda Context
 askContext = context |$> ask
 localContext :: (Context -> Context) -> Lambda a -> Lambda a
 localContext f = local (\env -> setContext (f (context env)) env)
+localContextBy :: Context -> Lambda a -> Lambda a
+localContextBy ctx = localContext (const ctx)
 
 askMSP :: Lambda MSP
 askMSP = msp |$> ask
 localMSP :: (MSP -> MSP) -> Lambda a -> Lambda a
 localMSP f = local (\env -> setMSP (f (msp env)) env)
+localMSPBy :: MSP -> Lambda a -> Lambda a
+localMSPBy x = localMSP (const x)
 
 askConfig :: Lambda Config
 askConfig = config |$> ask
 localConfig :: (Config -> Config) -> Lambda a -> Lambda a
 localConfig f = local (\env -> setConfig (f (config env)) env)
+localConfigBy :: Config -> Lambda a -> Lambda a
+localConfigBy x = localConfig (const x)
 
 --
 -- LambdaStates
 --
-getFreeVars :: Lambda FreeVars
-getFreeVars = do
+getDef :: Lambda Def
+getDef = do
     (x,_,_) <- get
-    (*:) x
-getGEnv :: Lambda GEnv
-getGEnv = do
-    (_,x,_) <- get
     (*:) x
 getTypeDef :: Lambda TypeDef
 getTypeDef = do
-    (_,_,x) <- get
+    (_,x,_) <- get
+    (*:) x
+getTypeVarCounter :: Lambda TypeVarCounter
+getTypeVarCounter = do
+    (a,b,x) <- get
+    put (a,b,x+1)
     (*:) x
 
-putFreeVars :: FreeVars -> Lambda ()
-putFreeVars fv = do
+putDef :: Def -> Lambda ()
+putDef x = do
     (_,b,c) <- get
-    put (fv,b,c) 
-putGEnv :: GEnv -> Lambda ()
-putGEnv genv = do
-    (a,_,c) <- get
-    put (a,genv,c)
+    put (x,b,c) 
 putTypeDef :: TypeDef -> Lambda ()
-putTypeDef td = do
-    (a,b,_) <- get
-    put (a,b,td)
+putTypeDef x = do
+    (a,_,c) <- get
+    put (a,x,c)
 
 ----------------------------------------------------------------------
 -- 
 ----------------------------------------------------------------------
 
 --
--- BindVar
---
-localBindVarsPush :: BindVars -> Lambda a -> Lambda a
-localBindVarsPush newbinds = localBindVars (newbinds++)
-isBindVar :: Name -> Lambda Bool
-isBindVar name = do
-    bindvars <- askBindVars
-    (*:) $ name `elem` bindvars
-
---
 -- Context
 --
-localContextPush :: Context -> Lambda a -> Lambda a
-localContextPush newctx = localContext (M.union newctx)
-localContextModify :: Name -> Type -> Lambda a -> Lambda a 
-localContextModify name ty lam = do
-    ctx <- askContext
-    let newctx = M.insert name ty ctx
-    localContext (const newctx) lam
-lookupContext :: Name -> Lambda (Maybe Type)
+lookupContext :: Name -> Lambda (Maybe (Type, Term))
 lookupContext name = do
     ctx <- askContext
-    (*:) $ M.lookup name ctx
+    (*:) $ lookup name ctx
 
 --
--- MSP: Maybe SourcePos
+-- Def
 --
-localMSPBy :: MSP -> Lambda a -> Lambda a
-localMSPBy msp = localMSP (const msp)
-
---
--- FreeVar
---
-isFreeVar :: Name -> Lambda Bool
-isFreeVar name = do
-    freevars <- getFreeVars
-    (*:) $ name `elem` freevars
-pushFreeVar :: Name -> Lambda ()
-pushFreeVar name = do
-    freevars <- getFreeVars
-    putFreeVars $ freevars ++ [name]
-
---
--- GEnv
---
-lookupGEnv :: Name -> Lambda (Maybe (Type, Term))
-lookupGEnv name = do
-    genv <- getGEnv
-    (*:) $ M.lookup name genv
-pushGEnv :: Name -> (Type, Term) -> Lambda ()
-pushGEnv name pair = do
-    genv <- getGEnv
-    putGEnv $ M.insert name pair genv
-
+lookupDef :: Name -> Lambda (Maybe (Type, Term))
+lookupDef name = do
+    genv <- getDef
+    (*:) $ lookup name genv
+insertDef :: Name -> (Type, Term) -> Lambda ()
+insertDef name pair = do
+    genv <- getDef
+    case elemIndex name (fst |$> genv) of
+      Nothing -> do
+        genv <- getDef
+        putDef $ genv ++ [(name, pair)]
+      Just n  -> do
+        let (l,r) = splitAt n genv
+        putDef $ l ++ ((name, pair) : (tail r))
 
 --
 -- TypeDef
@@ -202,48 +171,52 @@ pushTypeDef name tags = do
 -- de Bruijn index
 ----------------------------------------------------------------------
 
-toIndex :: BindVar -> Lambda Index
-toIndex name = do
-    binds <- askBindVars
-    frees <- getFreeVars
-    let index = case elemIndex name binds of
-                  Just n  -> n
-                  Nothing -> case elemIndex name frees of
-                    Just n  -> n + length binds
-                    Nothing -> length frees + length binds
-    (*:) index
-
-restoreIndex :: Int -> Lambda Name
-restoreIndex index = do
-    binds <- askBindVars
-    frees <- getFreeVars
-    if length binds > index  
-    then (*:) $ binds !! index
-    else if length frees > index - length binds
-         then (*:) $ frees !! (index - length binds)
-         else do
-            throwRestoreError $ "restoreIndex: wrong index detected: "++ show index ++"\n"
-                                                                     ++"binds: "++ show binds ++"\n"
-                                                                     ++"frees: "++ show frees
-
-----------------------------------------------------------------------
--- other
-----------------------------------------------------------------------
-
-makeContext :: Lambda Context
-makeContext = do
-    freevars <- getFreeVars
+nameToIndex :: Name -> Lambda (Maybe Index)
+nameToIndex name = do
     ctx <- askContext
-    rec freevars ctx
-  where
-    rec :: FreeVars -> Context -> Lambda Context
-    rec []         ctx = (*:) ctx
-    rec (name:fvs) ctx = do
-        mv <- lookupGEnv name
-        case mv of
-          Just (ty,_) -> rec fvs (M.insert name ty ctx)
-          --Nothing -> throwCompileError $ strMsg $ "makeContext error: lookup: not found: " ++ name
-          Nothing     -> rec fvs (M.insert name Ty.UNIT ctx)
+    case elemIndex name (fst |$> ctx) of
+      Just n  -> (*:) $ Just n
+      Nothing -> do
+        genv <- getDef
+        case elemIndex name (fst |$> genv) of
+          Just n  -> (*:) $ Just $ length ctx + n  
+          Nothing -> (*:) Nothing
+
+indexToName :: Int -> Lambda (Maybe Name)
+indexToName index = do
+    ctx <- askContext
+    if length ctx > index
+    then (*:) $ Just $ fst (ctx !! index)
+    else do
+        genv <- getDef
+        let index' = index - length ctx 
+        if length genv > index'
+        then (*:) $ Just $ fst (genv !! index')
+        else (*:) Nothing
+
+indexToType :: Int -> Lambda (Maybe Type)
+indexToType index = do
+    ctx <- askContext
+    if length ctx > index
+    then (*:) $ Just $ (fst . snd) $ ctx !! index
+    else do
+        genv <- getDef
+        let index' = index - length ctx
+        if length genv > index'
+        then (*:) $ Just $ (fst . snd) $ genv !! index'
+        else (*:) Nothing
+
+indexToTerm :: Index -> Lambda (Maybe Term)
+indexToTerm index = do
+    ctx <- askContext
+    if length ctx > index
+    then (*:) $ Just $ (snd . snd) (ctx !! index)
+    else do
+        genv <- getDef
+        let index' = index - length ctx 
+        if length genv > index'
+        then (*:) $ Just $ (snd . snd) (genv !! index')
+        else (*:) Nothing
 
 ----------------------------------------------------------------------------------------------------------
 -- IO action

@@ -36,17 +36,6 @@ substitute var arg (QUT (QQUOTE x) msp) = QUT (QUOTE (unquote x)) msp
     unquote :: Term -> Term
     unquote (QUT (UNQUOTE t@(VAR _ _)) _) = substitute var arg t
     unquote x                             = pdfmap unquote x
-{-
-substitute var arg (QUT qut msp) = QUT (case qut of
-    QUOTE x   -> qut
-    QQUOTE x  -> QQUOTE (unquote x)
-    UNQUOTE x -> error $ "betaReduce: substitute: UNQUOTE: "++ show qut
-    ) msp
-  where
-    unquote :: Term -> Term
-    unquote (QUT (UNQUOTE t@(VAR _ _)) _) = substitute var arg t
-    unquote x                             = pdfmap unquote x
--}
 --substitute var arg t@(THUNK _)  = t　
 substitute var arg t = pdfmap (substitute var arg) t
 
@@ -67,7 +56,7 @@ betaReduce sub target = target >- substitute 0 (shift 1 0 sub)
 -- betaReducePM
 ----------------------------------------------------------------------
 
-betaReducePM :: (PM, Term) -> Term -> Lambda Term -- (Term, BindVars)
+betaReducePM :: (PM, Term) -> Term -> Lambda Term
 betaReducePM (pm, arg) t = do
     matches <- patternMatch (pm, arg)
     (*:) $ foldl (\acc (_, t) -> betaReduce t acc) t matches

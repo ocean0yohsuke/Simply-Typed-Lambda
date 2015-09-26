@@ -14,11 +14,13 @@ import System.IO
 import qualified Data.Map as M 
 import Data.List (sortBy, drop, elemIndex)
 import Data.Char (isDigit)
+import Data.IORef
 import System.Directory (readable)
 import System.FilePath ((</>), takeExtension, takeDirectory)
 
 -- for debug
 import Debug.Trace 
+import System.IO.Unsafe
 
 main :: IO ()
 main = run
@@ -151,28 +153,27 @@ runREPL fdInfo = do
             putStrLn "" *> putStrLn ("________________________________________")
           Right codes -> do
             putStrLn $ "[ begin: " ++ show n ++ ". " ++ path ++ " ]"
-            rec initStates codes
+            rec initEnv initStates codes
             putStrLn $ "[ end: " ++ show n ++ ". " ++ path ++ " ]"
       Nothing -> runFI
     where
-      rec :: LambdaStates -> [SExpr] -> IO ()
-      rec _      []     = (*:) ()
-      rec states (c:cs) = do
-          (mv, states', _) <- runLambdaE (initEnv, states) c
-          --let newstates = refreshFreeVars states'
-          let newstates = states'
+      rec :: LambdaEnv -> LambdaStates -> [SExpr] -> IO ()
+      rec _   _      []     = (*:) ()
+      rec env states (c:cs) = do
+          (mv, newstates, _) <- runInterpretE (env, states) c
+          --let newstates = refreshFreeVars newstates
+          --traceM $ "FreeVars: " ++ show (fst newstates)
           case mv of
-            Left err            -> showError err >> rec newstates cs
+            Left err            -> showError err >> rec env newstates cs
             Right (RETURN expr) -> do
               putStr "=> "
               putStrLn $ show expr
-              rec newstates cs
-            Right VOID          -> rec newstates cs
+              rec env newstates cs
+            Right VOID          -> rec env newstates cs
         where
           showError err@(PARSE _)     = error $ show err   -- TODO: throwError
           showError err@(COMPILE _ _) = error $ show err   -- TODO: throwError
           showError err               = do
               putStr "*** "
               putStrLn $ show err
-
 

@@ -3,7 +3,6 @@ module Lambda.Util where
 import MonadX.Applicative
 import MonadX.Monad
 
-
 import Data.List (subsequences, sortBy)
 import Data.Function (on)
 

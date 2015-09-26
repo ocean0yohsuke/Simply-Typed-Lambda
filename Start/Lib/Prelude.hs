@@ -35,33 +35,33 @@ lcm a b = (a * b) / (gcd a b)
 --
 -- fold
 --
-foldl :: (b -> a -> b) -> b -> [a] -> b
+foldl :: (b12 -> a12 -> b12) -> b12 -> [a12] -> b12
 foldl f a []     = a
 foldl f a (x:xs) = foldl f (f a x) xs
 
-foldr :: (a -> b -> b) -> b -> [a] -> b
+foldr :: (a13 -> b13 -> b13) -> b13 -> [a13] -> b13
 foldr f a []     = a
 foldr f a (x:xs) = f x (foldr f a xs)
 
 --
 -- list
 --
-append :: [a] -> [a] -> [a]
+append :: [a14] -> [a14] -> [a14]
 append xs ys = foldr (:) ys xs
-(++) :: [a] -> [a] -> [a]
+(++) :: [a15] -> [a15] -> [a15]
 (++) = append
 
-length :: [a] -> Int
+length :: [a16] -> Int
 length xs = foldl (\a x -> a + 1) 0 xs
 
-reverse :: [a] -> [a]
+reverse :: [a17] -> [a17]
 reverse xs = foldl (\a x -> x : a) [] xs
 
-(!!) :: [a] -> Int -> a
+(!!) :: [a6] -> Int -> a6
 (!!) (x:xs) 0 = x
 (!!) (x:xs) k = xs !! (k - 1)
 
-elem :: a -> [a] -> Bool
+elem :: a7 -> [a7] -> Bool
 elem t []     = False
 elem t (x:xs) = if t == x
                 then True
@@ -70,13 +70,13 @@ elem t (x:xs) = if t == x
 --
 -- higher order 
 --
-map :: (a -> b) -> [a] -> [b]
+map :: (a8 -> b8) -> [a8] -> [b8]
 map f []     = []
 map f (x:xs) = f x : map f xs
-(|$>) :: (a -> b) -> [a] -> [b]
+(|$>) :: (a8 -> b8) -> [a8] -> [b8]
 (|$>) = map
 
-filter :: (a -> Bool) -> [a] -> [a]
+filter :: (a9 -> Bool) -> [a9] -> [a9]
 filter f []     = []
 filter f (x:xs) = if f x
                   then x : filter f xs
@@ -98,9 +98,9 @@ or xs = foldl (||) False xs
 and :: [Bool] -> Bool
 and xs = foldl (&&) False xs
 
-any :: (a -> Bool) -> [a] -> Bool
+any :: (a10 -> Bool) -> [a10] -> Bool
 any f xs = or (map f xs)
 
-all :: (a -> Bool) -> [a] -> Bool
+all :: (a11 -> Bool) -> [a11] -> Bool
 all f xs = and (map f xs)
 

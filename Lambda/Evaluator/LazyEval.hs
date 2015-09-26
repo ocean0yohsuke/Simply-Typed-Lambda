@@ -10,7 +10,6 @@ import Lambda.Action
 import Lambda.Convertor
 import Lambda.Compiler
 import Lambda.Evaluator.Eval.BetaReduce
-import Lambda.Evaluator.Eval.Util (fromBNFtoLAM)
 import Lambda.DataType
 import Lambda.DataType.Error.Eval (EvalError)
 import qualified Lambda.DataType.PatternMatch as PM
@@ -55,7 +54,7 @@ weekforce t           = (*:) t
 deThunk :: Term -> Lambda Term
 deThunk (THUNK t) = do
     v <- t >- lazyEval_
-    --memoize v            -- TODO: IORef か Referenceモナド
+    --memoize v            -- TODO: IORef か Referenceモナド で実装する必要あり
     (*:) $ v
 deThunk t = (*:) t
 
@@ -73,16 +72,14 @@ delay t
 
 lazyEval1 :: Term -> Lambda Term
 lazyEval1 (VAR index msp) = localMSPBy msp $ do
-    name <- restoreIndex index
-    mv <- lookupGEnv name
+    mv <- indexToTerm index
     case mv of
-      Nothing              -> throwEvalError $ strMsg $ "unbound variable detected: '"++ name ++"'"
-      Just (_, CONST _ fc) -> fc 
-      Just (_, COMND _ fc) -> fc >>= catchVoid
-      --Just (_, v)          -> (*:) v
-      Just (_, v)          -> do
-        binds <- askBindVars
-        (*:) $ shift (length binds) 0 v
+      Just (CONST _ fc) -> fc 
+      Just (COMND _ fc) -> fc >>= catchVoid
+      Just v -> do
+        ctx <- askContext
+        (*:) $ shift (length ctx) 0 v
+      Nothing -> throwCompileError $ strMsg $ "lazyEval1: index is too large: "++ show index
 lazyEval1 (FIX lam@(LAM p t _) msp) = localMSPBy msp $ case t of
     THUNK _ -> FIX |$> (LAM p |$> weekforce t |* Nothing) |* msp -- TODO:
     _       -> (*:) $ betaReduce (FIX lam msp) t
@@ -148,16 +145,14 @@ lazyEval1 v = (*:) v
 
 lazyEval :: Term -> Lambda ReturnT
 lazyEval (VAR index msp) = localMSPBy msp $ do
-    name <- restoreIndex index
-    mv <- lookupGEnv name
+    mv <- indexToTerm index
     case mv of
-      Nothing              -> throwEvalError $ strMsg $ "unbound variable detected: '"++ name ++"'"
-      Just (_, CONST _ fc) -> RETURN |$> fc 
-      Just (_, COMND _ fc) -> fc
-      --Just (_, v)          -> (*:) $ RETURN v
-      Just (_, v)          -> do
-        binds <- askBindVars
-        (*:) $ RETURN $ shift (length binds) 0 v
+      Just (CONST _ fc) -> RETURN |$> fc 
+      Just (COMND _ fc) -> fc 
+      Just v            -> do
+        ctx <- askContext
+        (*:) $ RETURN $ shift (length ctx) 0 v
+      Nothing -> throwCompileError $ strMsg $ "lazyEval: index is too large: "++ show index
 lazyEval (FIX lam@(LAM _ t _) msp) = localMSPBy msp $ do
     t <- weekactual t
     lazyEval $ betaReduce (FIX lam msp) t
@@ -182,24 +177,15 @@ lazyEval (SYN s msp) = localMSPBy msp $ case s of
         x <- weekactual x
         gointoCaseRoute x pairs >>= (weekforce >=> lazyEval)
 lazyEval (SEN s msp) = localMSPBy msp $ case s of
-    TYPESig (name, ty) -> do
-        mv <- lookupGEnv name
-        case mv of
-          Just _  -> throwEvalError $ strMsg $ "DEF: multiple type-signature declarations: " ++ name
-          Nothing -> pushGEnv name (ty, UNIT Nothing) >> (*:) VOID
-    DEF name t         -> do
-        mv <- lookupGEnv name
-        case mv of
-          Just (ty, UNIT Nothing) -> do
-              v <- lazyEval_ t 
-              pushGEnv name (ty, v)
-              (*:) VOID
-          Just (ty, _)            -> throwEvalError $ strMsg $ "DEF: multiple function declarations: " ++ name
+    TYPESig (name, _) -> insertDef name (Ty.UNIT, unit) >> (*:) VOID
+    DEF name t        -> do
+        v <- lazyEval_ t 
+        insertDef name (Ty.UNIT, v)
+        (*:) VOID
     BNF typename pairs -> do
         pushTypeDef typename pairs
         forM_ pairs $ \(tagname, tys) -> do
             (lamtag, ty) <- fromBNFtoLAM typename (tagname, tys)
-            pushGEnv tagname (ty, UNIT Nothing)
             lazyEval $ SEN (DEF tagname lamtag) Nothing
         (*:) VOID
 -- quote

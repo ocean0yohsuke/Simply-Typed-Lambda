@@ -32,9 +32,7 @@ instance Eq Type where
     BOOL  == BOOL    = True
     INT   == INT     = True
     CHAR  == CHAR    = True
-    VAR s == VAR s'  = True -- s == s' TODO: 場合によるかも
-    VAR _ == _       = True
-    _     == VAR _   = True
+    VAR s == VAR s'  = s == s'
     a1 :-> a2 == b1 :-> b2 = (a1,a2) == (b1,b2)
     TUPLE x   == TUPLE y   = x == y
     CONS x    == CONS y    = x == y
@@ -57,4 +55,6 @@ instance Show Type where
     show (CONS ty) = "["++ show ty ++"]"
     show (DATA name) = name
     show QUT = "Quote"
+
+
 

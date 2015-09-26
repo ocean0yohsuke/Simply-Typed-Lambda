@@ -7,12 +7,12 @@ unittest "squareM" [
     ]
 
 unittest "macro_expand" [
-    (macro_expand (squareM 3),       (*) 3 3),
-    (macro_expand ((squareM 3) + 1), (+) ((*) 3 3) 1),  
+    (macro_expand {squareM 3},       (*) 3 3),
+    (macro_expand {(squareM 3) + 1}, (+) ((*) 3 3) 1),  
 
-    (macro_expand (squareM a),                   (*) a a),
-    (macro_expand (let a = 1 in squareM a),      (\a1.(*) a1 a1) 1), 
-    (macro_expand (let a = 1 in squareM (a+1)),  (\a1.(*) ((+) a1 1) ((+) a1 1)) 1), 
+    (macro_expand {squareM a},                   (*) a a),
+    (macro_expand {let a = 1 in squareM a},      (\a.(*) a a) 1), 
+    (macro_expand {let a = 1 in squareM (a+1)},  (\a.(*) ((+) a 1) ((+) a 1)) 1), 
     ]
 
 evalN 0 ((squareM 3) + 1)

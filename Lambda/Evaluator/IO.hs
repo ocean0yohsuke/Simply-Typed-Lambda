@@ -33,7 +33,7 @@ evalImport t = do
     case mv of
       Left err    -> throwParseError $ show err
       Right codes -> do
-        mapM_ returnT codes
+        mapM_ (compile >=> thisEval) codes
         (*:) VOID
 
 -------------------------------------------------------------

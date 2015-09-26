@@ -9,6 +9,7 @@ import MonadX.Monad
 import qualified Lambda.DataType.PatternMatch as PM
 import qualified Lambda.DataType.Type as Ty
 import Lambda.DataType.SExpr (SExpr(..))
+import qualified Lambda.DataType.SExpr as SE
 import Lambda.DataType (Type((:->)), PM, SFile, SCode(..), Name, Filename, convert)
 
 import Text.Parsec hiding (spaces, lower) -- lower が '\955' とマッチしてしまう為。 Text.Parsec　のバグか？
@@ -229,6 +230,9 @@ pSentence = try pDef <|> try pTypeSig <|> pBNF
 pExpr :: Parser SExpr
 pExpr = try (pSentence <* comspaceline)
         <|> (pLexeme <* comspaceline)
+pExpr_ :: Parser SExpr
+pExpr_ = try pSentence
+         <|> pLexeme
 
 ------------------------------------
 -- sentence
@@ -479,7 +483,7 @@ pStr = do
     char '"'
     cs <- seq
     char '"'
-    (*:) $ foldr (\x acc -> CONS x acc (Just sp)) (NIL Nothing) (CHAR |$> cs |* Nothing)
+    (*:) $ foldr (\x acc -> CONS x acc (Just sp)) SE.nil (SE.char |$> cs)
   <?> "string"
   where
     seq :: Parser String
@@ -506,7 +510,7 @@ pList = try pNil <|> pCons <?> "list"
             t <- pLexeme
             ts <- manytry $ trycsnl *> char ',' *> trycsnl *> pLexeme
             try (trycsnl *> char ',' *> trycsnl) <|> trycsnl
-            (*:) $ foldr (\x acc -> CONS x acc (Just sp)) (NIL Nothing) (t:ts) -- TODO: sp 
+            (*:) $ foldr (\x acc -> CONS x acc (Just sp)) SE.nil (t:ts) -- TODO: sp 
 
 -- unit: _
 pUnit :: Parser SExpr
@@ -521,7 +525,6 @@ pQut :: Parser SExpr
 pQut = do
     sp <- getSourcePos
     char '{'
-    --t <- try pSingle <|> pLexeme
     t <- pLexeme
     char '}'
     (*:) $ QUT t (Just sp)
@@ -530,14 +533,14 @@ pQQut :: Parser SExpr
 pQQut = do
     sp <- getSourcePos
     char '`'
-    t <- try pSingle <|> parens pLexeme
+    t <- pLexeme
     (*:) $ QQUT t (Just sp)
 -- unquote
 pUnQut :: Parser SExpr
 pUnQut = do
     sp <- getSourcePos
     char ','
-    t <- pVar -- TODO: de Bruijn index で beta-reduction をしているので、 (try pSingle <|> parens pLexeme) とはできない
+    t <- pVar -- TODO: de Bruijn index で beta-reduction をしているので、 pLexeme とはできない
     (*:) $ UNQUT t (Just sp)
 
 

@@ -18,11 +18,10 @@ module Lambda.DataType (
     LambdaError(..),
 
     runLambda, Lambda(..), unLambda, 
-    LambdaEnv(..), setBindVars, setContext, setMSP, setConfig,
+    LambdaEnv(..), setContext, setMSP, setConfig,
     LambdaStates,
-    GEnv, Context, Config(..), 
-    FreeVar, TypeDef, BindVar, 
-    FreeVars, BindVars, refreshFreeVars,
+    Context, Config(..), 
+    Def, TypeDef, TypeVarCounter,
 
     isValue, isThunked,
     isVAR, isTHUNK, isQUOTE, isQQUOTE,
@@ -56,6 +55,7 @@ import Data.List (intersperse)
 import qualified Data.Map as M
 import Data.Foldable hiding (toList)
 import Data.Traversable (Traversable)
+import Data.IORef
 
 -------------------------------------
 -- Term
@@ -167,7 +167,6 @@ instance Show Term where
     --
     show (THUNK x)      = "_["++ show x ++"]_"
 
-
 instance Eq Term where
     NULL     == NULL      = True
     BOOL x _ == BOOL y  _ = x == y
@@ -240,46 +239,32 @@ unLambda :: Lambda a -> ErrorT LambdaError
 unLambda (Lambda a) = a
 
 data LambdaEnv = LambdaEnv {
-      bindVars :: BindVars
-    , context :: Context
+      context :: Context
     , msp :: MSP
     , config :: Config
     }
-setBindVars :: BindVars -> LambdaEnv -> LambdaEnv
-setBindVars x (LambdaEnv _ b c d) = LambdaEnv x b c d
 setContext :: Context -> LambdaEnv -> LambdaEnv
-setContext x (LambdaEnv a _ c d) = LambdaEnv a x c d
+setContext x (LambdaEnv _ b c) = LambdaEnv x b c
 setMSP :: MSP -> LambdaEnv -> LambdaEnv
-setMSP x (LambdaEnv a b _ d) = LambdaEnv a b x d
+setMSP x (LambdaEnv a _ c) = LambdaEnv a x c
 setConfig :: Config -> LambdaEnv -> LambdaEnv
-setConfig x (LambdaEnv a b c _) = LambdaEnv a b c x
+setConfig x (LambdaEnv a b _) = LambdaEnv a b x
 
-type LambdaStates = (FreeVars, GEnv, TypeDef)
+type Context  = [(Name, (Type, Term))]
+
+type LambdaStates = (Def, TypeDef, TypeVarCounter)  -- TODO: records
+
+type Def = [(Name, (Type, Term))]           -- Function Definition 
+type TypeDef = M.Map Name [(Name, [Type])]
+type TypeVarCounter = Int
 
 runLambda :: Lambda a 
-             -> LambdaEnv       -- Reader
-             -> LambdaStates    -- States
+             -> LambdaEnv    -- Reader
+             -> LambdaStates -- States
              -> IO (Either LambdaError a, LambdaStates, ())
 runLambda (Lambda x) env states = x >- runErrorT
                                     >- (runRWST >-> (|>env) >-> (|>states)) 
-
-type BindVars = [Name]
-type Context  = M.Map Name Type
-type IsInQuote = Bool
-
-type FreeVars = [Name]
-type GEnv = M.Map Name (Type, Term) -- Global Environment
-type TypeDef = M.Map Name [(Name, [Type])]
-
---
--- other
---
-type FreeVar = Name
-type BindVar = Name
-
-refreshFreeVars :: LambdaStates -> LambdaStates
-refreshFreeVars (_, genv, typedef) = ([], genv, typedef)
-               
+          
 ----------------------------------------------------------------------
 -- Monad instances
 ----------------------------------------------------------------------

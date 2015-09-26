@@ -1,6 +1,5 @@
 module Lambda.Evaluator.Eval.Util (
     gointoCaseRoute,
-    fromBNFtoLAM, 
 ) where
 
 import MonadX.Applicative
@@ -25,30 +24,6 @@ gointoCaseRoute x ((pm,t):pairs) = do
             [] -> do e <- restore x 
                      throwEvalError $ strMsg $ "CASE: unexhausted pattern: "++ show e
             _  -> gointoCaseRoute x pairs
-
-----------------------------------------------------------------------
--- fromBNFtoLAM
-----------------------------------------------------------------------
-
-fromBNFtoLAM :: Name -> (Name, [Type]) -> Lambda (Term, Type)
-fromBNFtoLAM typename (tagname, tys) = do
-    lamtag <- makeLambdaTag (tagname, tys)
-    let ty = makeType tys
-    (*:) (lamtag, ty)
-  where 
-    makeLambdaTag :: (Name, [Type]) -> Lambda Term
-    makeLambdaTag (tagname, tys) = do
-        let vars = var |$> take (length tys) newIndexes
-            tagas = tag (TAGAs tagname vars)
-            pms = PM.var |$> take (length tys) newVars
-        (*:) $ foldr (\(pm,ty) acc -> lam (pm, ty) acc) tagas (zip pms tys)
-      where
-        newIndexes = [0..]
-        newVars :: [Name]
-        newVars = ("x"++) |$> semiInfinitePostfixes
-    makeType :: [Type] -> Type
-    makeType tys = foldr (:->) (Ty.DATA typename) tys
-
 
 
 

@@ -83,9 +83,11 @@ instance Show Expr where
     show (OPR sym _)      = sym
     show (LAM (pm, ty@(_ :-> _)) e _)  = "\\"++ show pm ++"::("++ show ty ++")."++ show e
     show (LAM (pm, Ty.UNIT) e _)       = "\\"++ show pm ++"."++ show e
+    --show (LAM (pm, Ty.VAR _) e _)      = "\\"++ show pm ++"."++ show e
     show (LAM (pm, ty)      e _)       = "\\"++ show pm ++"::"++ show ty ++"."++ show e
     show (LAMM (pm, ty@(_ :-> _)) e _) = "#"++ show pm ++"::("++ show ty ++")."++ show e
     show (LAMM (pm, Ty.UNIT) e _)      = "#"++ show pm ++"."++ show e
+    --show (LAMM (pm, Ty.VAR _) e _)     = "#"++ show pm ++"."++ show e
     show (LAMM (pm, ty)      e _)      = "#"++ show pm ++"::"++ show ty ++"."++ show e
     -- 
     show (FIX lambda _)      = "fix " ++ show lambda 

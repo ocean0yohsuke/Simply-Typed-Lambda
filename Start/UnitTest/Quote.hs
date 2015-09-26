@@ -22,9 +22,6 @@ g :: _
 g = \x -> `(isunprovable (valueof (,x {,x})))
 
 unittest "quine & godel" [
-    ((\x1. `(,x1 {,x1})) {\x1. `(,x1 {,x1})},  
-     (\x1. `(,x1 {,x1})) {\x1. `(,x1 {,x1})}),
-
     (q {x},   x {x}),
     (q {q},   q {q}),
     (g {x},   isunprovable (valueof (x {x}))),
