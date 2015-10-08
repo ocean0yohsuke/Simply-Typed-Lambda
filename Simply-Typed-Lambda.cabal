@@ -1,0 +1,124 @@
+name:                Simply-Typed-Lambda
+version:             0.1.0.0
+synopsis:            A Haskell(Simply-Typed-Lambda) interpreter written in Haskell
+description:         Please see README.md
+homepage:            http://github.com/ocean0yohsuke/Simply-Typed-Lambda#readme
+license:             BSD3
+license-file:        LICENSE
+author:              KONISHI Yohsuke
+maintainer:          KONISHI Yohsuke
+copyright:           KONISHI Yohsuke
+category:            Interpretor
+build-type:          Simple
+-- extra-source-files:
+cabal-version:       >=1.10
+
+library
+  hs-source-dirs:      src
+  exposed-modules:     Config
+                     , Lambda.Compiler.Desugar
+                     , Lambda.Compiler.Restore
+                     , Lambda.Compiler.ToTerm
+                     , Lambda.Compiler.Typeof
+                     , Lambda.Convertor.Expr
+                     , Lambda.Convertor.PatternMatch
+                     , Lambda.Convertor.SExpr
+                     , Lambda.Convertor.Term
+                     , Lambda.Convertor.Type
+                     , Lambda.DataType.Error.Compile
+                     , Lambda.DataType.Error.Eval
+                     , Lambda.DataType.Shadow.Expr_
+                     , Lambda.DataType.Shadow.Gadget_
+                     , Lambda.DataType.Shadow.PatternMatch_
+                     , Lambda.DataType.Shadow.SExpr_
+                     , Lambda.DataType.Common
+                     , Lambda.DataType.Error
+                     , Lambda.DataType.Expr
+                     , Lambda.DataType.Gadget
+                     , Lambda.DataType.PatternMatch
+                     , Lambda.DataType.SExpr
+                     , Lambda.DataType.Type
+                     , Lambda.DataType.Value
+                     , Lambda.Evaluator.Eval.BetaReduce
+                     , Lambda.Evaluator.Eval.Util
+                     , Lambda.Evaluator.Debug
+                     , Lambda.Evaluator.Def
+                     , Lambda.Evaluator.Eval
+                     , Lambda.Evaluator.IO
+                     , Lambda.Evaluator.LazyEval
+                     , Lambda.Evaluator.Meta
+                     , Lambda.Evaluator.Micro
+                     , Lambda.Evaluator.Prelude
+                     , Lambda.Action
+                     , Lambda.Compiler
+                     , Lambda.Convertor
+                     , Lambda.DataType
+                     , Lambda.Debug
+                     , Lambda.Evaluator
+                     , Lambda.Parser
+                     , Lambda.Util
+                     , MonadX.Monad.Error
+                     , MonadX.Monad.Maybe
+                     , MonadX.Monad.RWS
+                     , MonadX.Monad.Reader
+                     , MonadX.Monad.Reference
+                     , MonadX.Monad.State
+                     , MonadX.Monad.Writer
+                     , MonadX.MonadTrans
+                     , Util.FileSystem
+                     , Util.LISP
+                     , Util.Pseudo
+  build-depends:       base >= 4.7 && < 5
+                     , deepcontrol
+                     , mtl
+                     , containers
+                     , parsec
+                     , directory, filepath
+                     , time
+  default-language:    Haskell2010
+
+executable STLI-exe
+  hs-source-dirs:      app
+  main-is:             Interpreter.hs
+  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
+  build-depends:       base
+                     , deepcontrol
+                     , Simply-Typed-Lambda
+ default-language:    Haskell2010
+executable STLFI-exe
+  hs-source-dirs:      app
+  main-is:             FileInterpreter.hs
+  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
+  build-depends:       base
+                     , deepcontrol
+                     , Simply-Typed-Lambda
+                     , directory
+                     , filepath
+  default-language:    Haskell2010
+
+Test-Suite UnitTest
+  Type:                 exitcode-stdio-1.0
+  Default-Language:     Haskell2010
+  HS-Source-Dirs:       test
+  -- Ghc-Options:          -threaded -Wall
+  Main-Is:              UnitTest.hs
+  Build-Depends:        base
+                      , HUnit
+                      , deepcontrol
+                      , Simply-Typed-Lambda
+                      , parsec
+Test-Suite UnitTest2
+  Type:                 exitcode-stdio-1.0
+  Default-Language:     Haskell2010
+  HS-Source-Dirs:       test
+  -- Ghc-Options:          -threaded -Wall
+  Main-Is:              UnitTest2.hs
+  Build-Depends:        base
+                      , HUnit
+                      , deepcontrol
+                      , Simply-Typed-Lambda
+
+
+source-repository head
+  type:     git
+  location: https://github.com/githubuser/Simply-Typed-Lambda

@@ -1,17 +1,11 @@
 # Simply-Typed-Lambda
-My Simply-Typed-Lambda(Hakell like) interpreter written in Haskell
+My Simply-Typed-Lambda(Hakell-like) interpreter written in Haskell
 
 いずれコンパイラにするつもり
 
 ## Interpreter.hs
 
-    ~/Simply-Typed-Lambda> ghci
-    GHCi, version 7.8.3: http://www.haskell.org/ghc/  :? for help
-    Loading package ghc-prim ... linking ... done.
-    Loading package integer-gmp ... linking ... done.
-    Loading package base ... linking ... done.
-    Prelude> :l Interpreter.hs
-    *Main> run
+    .../Simply-Typed-Lambda$ stack runghc app/Interpreter.hs
     >
     1 + 1
     => 2
@@ -40,13 +34,27 @@ My Simply-Typed-Lambda(Hakell like) interpreter written in Haskell
 
 ## FileInterpreter.hs
 
-    Prelude> :l FileInterpreter.hs
-    *Main> run
+    .../Simply-Typed-Lambda$ stack runghc app/FileInterpreter.hs
     Files in 'Start'.
     Input number or command; 'list', 'up' or 're-eval' (abbr. ':l', ':u', ':r', respectively).
     - 0. ../
     - 1. [Lib]
     - 2. [UnitTest]
-    - 3. test.hs
-    [Start]: 
+    [Start]: 2
+    Files in 'Start/UnitTest'.
+    Input number or command; 'list', 'up' or 're-eval' (abbr. ':l', ':u', ':r', respectively).
+    - 0. ../
+    - 1. EvaluationStrategy.hs
+    - 2. FixedPoint.hs
+    - 3. Macro.hs
+    - 4. Prelude.hs
+    - 5. Quote.hs
+    [Start/UnitTest]: 1
+    [ begin: 1. Start/UnitTest/EvaluationStrategy.hs ]
+    unittest ["evaluation order"] - Cases: 2  Tried: 2  Errors: 0  Failures: 0
+    unittest ["lazy-evaluation: unless"] - Cases: 1  Tried: 1  Errors: 0  Failures: 0
+    unittest ["lazy-evaluation: infinite list"] - Cases: 7  Tried: 7  Errors: 0  Failures: 0
+    [ end: 1. Start/UnitTest/EvaluationStrategy.hs ]
+    [Start/UnitTest]: 
+
 

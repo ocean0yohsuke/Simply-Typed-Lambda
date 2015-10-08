@@ -1,2 +1,0 @@
-
-(λx::Bool.x) True
