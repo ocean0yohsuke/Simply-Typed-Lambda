@@ -1,7 +1,7 @@
 import DeepControl.Applicative
 import DeepControl.Monad
 import DeepControl.Arrow
-import MonadX.Monad.RWS
+import DeepControl.Monad.RWS
 
 import Lambda.Parser (readSCode)
 import Lambda.Evaluator

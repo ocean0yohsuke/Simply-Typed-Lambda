@@ -3,8 +3,8 @@ module Lambda.Action where
 
 import DeepControl.Applicative
 import DeepControl.Monad
-import MonadX.Monad.RWS
-import MonadX.Monad.Error
+import DeepControl.Monad.RWS
+import DeepControl.Monad.Except
 
 import Lambda.Parser (readSFile, ParseError)
 import Lambda.DataType

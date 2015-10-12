@@ -3,6 +3,8 @@ My Simply-Typed-Lambda(Hakell-like) interpreter written in Haskell
 
 いずれコンパイラにするつもり
 
+    .../Simply-Typed-Lambda$ stack build
+
 ## Interpreter.hs
 
     .../Simply-Typed-Lambda$ stack runghc app/Interpreter.hs
@@ -23,12 +25,16 @@ My Simply-Typed-Lambda(Hakell-like) interpreter written in Haskell
     => True
     letrec makeInfiniteList::Int->[Int] = (\n -> n : (makeInfiniteList (n + 1))) in head (makeInfiniteList 1)
     => 1
+
     typeof (+)
     Int -> Int -> Int
+
     typeof (\x -> x + 1)
     Int -> Int
+
     typeof (λx::a->a. x 3)
     (Int -> Int) -> Int
+
     typeof (λx. x 3)
     (Int -> a23) -> a23
 

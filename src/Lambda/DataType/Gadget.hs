@@ -2,6 +2,7 @@ module Lambda.DataType.Gadget where
 
 import DeepControl.Applicative
 import DeepControl.Monad hiding (mapM)
+
 import Lambda.DataType.Common
 import Lambda.DataType.PatternMatch (PM)
 import Lambda.DataType.Type (Type)

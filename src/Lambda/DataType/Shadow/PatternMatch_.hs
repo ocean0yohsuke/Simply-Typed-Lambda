@@ -3,6 +3,7 @@ module Lambda.DataType.Shadow.PatternMatch_ where
 
 import DeepControl.Applicative
 import DeepControl.Monad
+
 import Lambda.DataType.Common
 import Lambda.DataType.PatternMatch (PatternMatch)
 import qualified Lambda.DataType.PatternMatch as O -- original

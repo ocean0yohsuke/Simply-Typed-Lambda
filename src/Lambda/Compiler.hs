@@ -486,9 +486,9 @@ restore (TAG g msp) = localMSPBy msp $ E.TAG |$> mapM restore g |* msp
 restoreFuncKind :: String -> String -> Lambda Expr
 restoreFuncKind label string = 
     case readSLexeme string of
-        Left err        -> throwRestoreError $ strMsg $ label ++": failed to restore: '"++ string ++"'\n"++ show err
+        Left err        -> throwRestoreError $ label ++": failed to restore: '"++ string ++"'\n"++ show err
         Right (se,[])   -> se >- desugarSExpr
-        Right (se,rest) -> throwRestoreError $ strMsg $ label ++": failed to restore: "++ string ++"\nparsed: "++ show se ++"\nrest: "++ show rest
+        Right (se,rest) -> throwRestoreError $ label ++": failed to restore: "++ string ++"\nparsed: "++ show se ++"\nrest: "++ show rest
 
 ----------------------------------------------------------------------
 -- for debug

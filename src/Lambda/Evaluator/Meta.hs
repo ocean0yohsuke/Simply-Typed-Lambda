@@ -2,6 +2,7 @@ module Lambda.Evaluator.Meta where
 
 import DeepControl.Applicative
 import DeepControl.Monad
+import DeepControl.MonadTrans (liftIO)
 
 import Lambda.Evaluator.Eval
 import Lambda.Evaluator.LazyEval

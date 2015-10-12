@@ -8,14 +8,13 @@ module Lambda.DataType (
     module Lambda.DataType.Common,
     module Lambda.DataType.Error,
     module Lambda.DataType.Gadget,
-    module MonadX.Monad.RWS,
+    module DeepControl.Monad.RWS,
     module Util.Pseudo,
 
     PM, Type((:->)), Expr, SExpr, Expr_, SExpr_, PM_,
     Term(..), isList, toList, fromList,
     SCode(..), SFile, Filename,
     Return(..), ReturnT, ReturnE,
-    LambdaError(..),
 
     runLambda, Lambda(..), unLambda, 
     LambdaEnv(..), setContext, setMSP, setConfig,
@@ -32,8 +31,9 @@ module Lambda.DataType (
 
 import DeepControl.Applicative
 import DeepControl.Monad
-import MonadX.Monad.RWS hiding (liftCatch)
-import MonadX.Monad.Error hiding (liftCatch)
+import DeepControl.Monad.RWS hiding (liftCatch)
+import DeepControl.Monad.Except hiding (liftCatch)
+import DeepControl.MonadTrans
 
 import Config
 import Lambda.DataType.Common
@@ -230,11 +230,11 @@ type ReturnE = Return Expr
 -- Lambda
 -------------------------------------
 
-newtype Lambda a = Lambda (ErrorT LambdaError 
+newtype Lambda a = Lambda (ExceptT LambdaError 
                           (RWST LambdaEnv () LambdaStates IO) a)
   deriving (Functor, Applicative, Monad, MonadIO)
 
-unLambda :: Lambda a -> ErrorT LambdaError 
+unLambda :: Lambda a -> ExceptT LambdaError 
                         (RWST LambdaEnv () LambdaStates IO) a
 unLambda (Lambda a) = a
 
@@ -262,7 +262,7 @@ runLambda :: Lambda a
              -> LambdaEnv    -- Reader
              -> LambdaStates -- States
              -> IO (Either LambdaError a, LambdaStates, ())
-runLambda (Lambda x) env states = x >- runErrorT
+runLambda (Lambda x) env states = x >- runExceptT
                                     >- (runRWST >-> (|>env) >-> (|>states)) 
           
 ----------------------------------------------------------------------
@@ -271,7 +271,7 @@ runLambda (Lambda x) env states = x >- runErrorT
 
 instance MonadReader LambdaEnv Lambda where
     ask     = Lambda $ trans $ ask
-    local x = Lambda . (mapErrorT (local x)) . unLambda
+    local x = Lambda . (mapExceptT (local x)) . unLambda
 instance MonadState LambdaStates Lambda where
     get   = Lambda $ trans $ get
     put   = Lambda . trans . put

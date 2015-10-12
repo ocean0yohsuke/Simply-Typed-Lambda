@@ -1,8 +1,10 @@
+{-# LANGUAGE MultiWayIf #-}
 import Config
 import DeepControl.Applicative
 import DeepControl.Monad
 import DeepControl.Arrow
-import MonadX.Monad.RWS
+import DeepControl.Monad.RWS
+import DeepControl.MonadTrans (liftIO)
 import Util.FileSystem
 
 import Lambda.Parser
@@ -98,28 +100,24 @@ runFI = do
         cd <- getCD
         liftIO $ putStr $ "[" ++ cd ++ "]: "
         input <- liftIO getLine
-        if null input 
-        then loop 
-        else if input `elem` ["l", ":l", "list"] 
-             then runFI 
-             else if input `elem` ["u", ":u", "up"] 
-                  then upDirectory 
-                  else if input `elem` ["r", ":r", "re-eval"]
-                       then do fn <- getFN
-                               case fn of
-                                   Just n  -> evalFile (fdInfos!!n)
-                                   Nothing -> runFI
-                       else if not (and $ isDigit |$> input) 
-                            then loop 
-                            else let n = (read input :: Int)
-                                 in if n >= length fdInfos 
-                                    then loop 
-                                    else let fdInfo = fdInfos!!n
-                                         in if fdPath fdInfo == cd 
-                                            then upDirectory 
-                                            else if isDirectory fdInfo 
-                                                 then diveDirectory fdInfo 
-                                                 else evalFile fdInfo
+        if | null input                       -> loop
+           | input `elem` ["l", ":l", "list"] -> runFI 
+           | input `elem` ["u", ":u", "up"]   -> upDirectory 
+           | input `elem` ["r", ":r", "re-eval"] -> do
+                fn <- getFN
+                case fn of
+                  Just n  -> evalFile (fdInfos!!n)
+                  Nothing -> runFI
+           | not (and $ isDigit |$> input) -> loop
+           | otherwise -> let n = (read input :: Int)
+                          in if n >= length fdInfos 
+                             then loop 
+                             else let fdInfo = fdInfos!!n
+                                  in if fdPath fdInfo == cd 
+                                     then upDirectory 
+                                     else if isDirectory fdInfo 
+                                          then diveDirectory fdInfo 
+                                          else evalFile fdInfo
       where
         upDirectory :: FileInterpreter ()
         upDirectory = do
@@ -165,8 +163,6 @@ runREPL fdInfo = do
       rec _   _      []     = (*:) ()
       rec env states (c:cs) = do
           (mv, newstates, _) <- runInterpretE (env, states) c
-          --let newstates = refreshFreeVars newstates
-          --traceM $ "FreeVars: " ++ show (fst newstates)
           case mv of
             Left err            -> showError err >> rec env newstates cs
             Right (RETURN expr) -> do

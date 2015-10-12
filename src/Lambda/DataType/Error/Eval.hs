@@ -1,7 +1,8 @@
 module Lambda.DataType.Error.Eval where
 
+import DeepControl.Monad.Except
+
 import Lambda.DataType.Common
-import MonadX.Monad.Error
 
 --------------------------------------------------
 -- Data
@@ -10,10 +11,11 @@ import MonadX.Monad.Error
 data EvalError = VOID
                | OTHER String
 
+instance Error EvalError where
+    strMsg s = OTHER s
+
 instance Show EvalError where
     show VOID        = "Void returned."
     show (OTHER mes) = mes 
 
-instance Error EvalError where
-    strMsg s = OTHER s
 

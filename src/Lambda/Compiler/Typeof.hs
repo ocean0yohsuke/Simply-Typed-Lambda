@@ -2,7 +2,7 @@ module Lambda.Compiler.Typeof where
 
 import DeepControl.Applicative
 import DeepControl.Monad
-import MonadX.MonadTrans
+import DeepControl.MonadTrans
 
 import Lambda.Action
 import Lambda.Convertor

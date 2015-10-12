@@ -1,13 +1,14 @@
 module Lambda.DataType.Error (
-    module MonadX.Monad.Error,
+    Error(..), MonadError(..),
 
     LambdaError(..),
-    CompileError, EvalError,
+    CompileError(..),
+    EvalError(..),
 ) where
 
-import Lambda.DataType.Common
-import MonadX.Monad.Error
+import DeepControl.Monad.Except
 
+import Lambda.DataType.Common
 import Lambda.DataType.Error.Compile (CompileError)
 import Lambda.DataType.Error.Eval (EvalError)
 

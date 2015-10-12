@@ -3,6 +3,7 @@ module Lambda.Evaluator.IO where
 
 import DeepControl.Applicative
 import DeepControl.Monad
+import DeepControl.MonadTrans (liftIO)
 
 import Lambda.Evaluator.Eval
 import Lambda.Action

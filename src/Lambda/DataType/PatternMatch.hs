@@ -2,6 +2,7 @@ module Lambda.DataType.PatternMatch where
 
 import DeepControl.Applicative
 import DeepControl.Monad
+
 import Lambda.DataType.Common
 import qualified Lambda.DataType.Type as Ty
 import qualified Util.LISP as L

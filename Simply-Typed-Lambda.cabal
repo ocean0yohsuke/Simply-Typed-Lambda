@@ -1,5 +1,5 @@
 name:                Simply-Typed-Lambda
-version:             0.1.0.0
+version:             0.1.1.0
 synopsis:            A Haskell(Simply-Typed-Lambda) interpreter written in Haskell
 description:         Please see README.md
 homepage:            http://github.com/ocean0yohsuke/Simply-Typed-Lambda#readme
@@ -57,19 +57,11 @@ library
                      , Lambda.Evaluator
                      , Lambda.Parser
                      , Lambda.Util
-                     , MonadX.Monad.Error
-                     , MonadX.Monad.Maybe
-                     , MonadX.Monad.RWS
-                     , MonadX.Monad.Reader
-                     , MonadX.Monad.Reference
-                     , MonadX.Monad.State
-                     , MonadX.Monad.Writer
-                     , MonadX.MonadTrans
                      , Util.FileSystem
                      , Util.LISP
                      , Util.Pseudo
   build-depends:       base >= 4.7 && < 5
-                     , deepcontrol >= 0.1 && < 0.2
+                     , deepcontrol >= 0.2 && < 0.3
                      , mtl
                      , containers
                      , parsec
@@ -81,8 +73,9 @@ executable STLI-exe
   hs-source-dirs:      app
   main-is:             Interpreter.hs
   -- ghc-options:         -threaded -rtsopts -with-rtsopts=-N
+  other-extensions:    MultiWayIf
   build-depends:       base >= 4.7 && < 5
-                     , deepcontrol >= 0.1 && < 0.2
+                     , deepcontrol >= 0.2 && < 0.3
                      , Simply-Typed-Lambda
  default-language:    Haskell2010
 executable STLFI-exe
@@ -90,7 +83,7 @@ executable STLFI-exe
   main-is:             FileInterpreter.hs
   -- ghc-options:         -threaded -rtsopts -with-rtsopts=-N
   build-depends:       base >= 4.7 && < 5
-                     , deepcontrol >= 0.1 && < 0.2
+                     , deepcontrol >= 0.2 && < 0.3
                      , Simply-Typed-Lambda
                      , directory
                      , filepath
@@ -104,7 +97,7 @@ Test-Suite UnitTest
   Main-Is:              UnitTest.hs
   Build-Depends:        base >= 4.7 && < 5
                       , HUnit
-                      , deepcontrol >= 0.1 && < 0.2
+                      , deepcontrol >= 0.2 && < 0.3
                       , Simply-Typed-Lambda
                       , parsec
 Test-Suite UnitTest2
@@ -114,10 +107,9 @@ Test-Suite UnitTest2
   -- Ghc-Options:          -threaded -Wall
   Main-Is:              UnitTest2.hs
   Build-Depends:        base >= 4.7 && < 5
+                      , deepcontrol >= 0.2 && < 0.3
                       , HUnit
-                      , deepcontrol >= 0.1 && < 0.2
                       , Simply-Typed-Lambda
-
 
 source-repository head
   type:     git

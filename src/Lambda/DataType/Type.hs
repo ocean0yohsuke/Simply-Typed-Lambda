@@ -2,6 +2,7 @@ module Lambda.DataType.Type where
 
 import DeepControl.Applicative
 import DeepControl.Monad
+
 import Lambda.DataType.Common
 
 import Data.List (intersperse)

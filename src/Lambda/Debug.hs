@@ -2,6 +2,7 @@ module Lambda.Debug where
 
 import DeepControl.Applicative
 import DeepControl.Monad
+import DeepControl.MonadTrans (liftIO)
 
 import Lambda.DataType
 import Lambda.Action
