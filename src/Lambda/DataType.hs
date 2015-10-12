@@ -271,7 +271,7 @@ runLambda (Lambda x) env states = x >- runErrorT
 
 instance MonadReader LambdaEnv Lambda where
     ask     = Lambda $ trans $ ask
-    local m = Lambda . (mapErrorT (local m)) . unLambda
+    local x = Lambda . (mapErrorT (local x)) . unLambda
 instance MonadState LambdaStates Lambda where
     get   = Lambda $ trans $ get
     put   = Lambda . trans . put

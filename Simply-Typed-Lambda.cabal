@@ -69,7 +69,7 @@ library
                      , Util.LISP
                      , Util.Pseudo
   build-depends:       base >= 4.7 && < 5
-                     , deepcontrol
+                     , deepcontrol >= 0.1 && < 0.2
                      , mtl
                      , containers
                      , parsec
@@ -81,16 +81,16 @@ executable STLI-exe
   hs-source-dirs:      app
   main-is:             Interpreter.hs
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
-  build-depends:       base
-                     , deepcontrol
+  build-depends:       base >= 4.7 && < 5
+                     , deepcontrol >= 0.1 && < 0.2
                      , Simply-Typed-Lambda
  default-language:    Haskell2010
 executable STLFI-exe
   hs-source-dirs:      app
   main-is:             FileInterpreter.hs
   ghc-options:         -threaded -rtsopts -with-rtsopts=-N
-  build-depends:       base
-                     , deepcontrol
+  build-depends:       base >= 4.7 && < 5
+                     , deepcontrol >= 0.1 && < 0.2
                      , Simply-Typed-Lambda
                      , directory
                      , filepath
@@ -102,9 +102,9 @@ Test-Suite UnitTest
   HS-Source-Dirs:       test
   -- Ghc-Options:          -threaded -Wall
   Main-Is:              UnitTest.hs
-  Build-Depends:        base
+  Build-Depends:        base >= 4.7 && < 5
                       , HUnit
-                      , deepcontrol
+                      , deepcontrol >= 0.1 && < 0.2
                       , Simply-Typed-Lambda
                       , parsec
 Test-Suite UnitTest2
@@ -113,9 +113,9 @@ Test-Suite UnitTest2
   HS-Source-Dirs:       test
   -- Ghc-Options:          -threaded -Wall
   Main-Is:              UnitTest2.hs
-  Build-Depends:        base
+  Build-Depends:        base >= 4.7 && < 5
                       , HUnit
-                      , deepcontrol
+                      , deepcontrol >= 0.1 && < 0.2
                       , Simply-Typed-Lambda
 
 
